@@ -15,6 +15,7 @@ import On1 from "./user_interfaces/onboarding/On1";
 import Login from "./user_interfaces/auth/Login";
 import Homedashboard from "./user_interfaces/home/Homedashboard";
 import SignUp from "./user_interfaces/auth/Signup";
+import ChatScreen from "./user_interfaces/home/Chat";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -94,6 +95,7 @@ function RootNavigator() {
         initialRouteName="HomeDashboard"
       >
         <Stack.Screen name="HomeDashboard" component={Homedashboard} />
+        <Stack.Screen name="Chat" component={ChatScreen} />
       </Stack.Navigator>
     );
   }

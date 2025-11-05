@@ -123,7 +123,31 @@ const HomeDashboard = ({ navigation }) => {
           </View>
         </View>
 
-        
+        {/* AI Chat Highlight Card */}
+        <View className="px-6 mb-12">
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Chat")}
+            className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl p-8 border border-blue-500 border-opacity-50"
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text className="text-xs text-blue-200 mb-2 tracking-widest">
+                  FEATURE
+                </Text>
+                <Text className="text-2xl font-semibold text-white mb-2">
+                  Chat with AI
+                </Text>
+                <Text className="text-sm text-blue-100">
+                  Ask Gemini anything
+                </Text>
+              </View>
+              <View className="w-12 h-12 bg-white bg-opacity-20 rounded-full justify-center items-center">
+                <Feather name="message-circle" size={24} color="#fff" />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Actions */}
         <View className="px-6 pb-20">
           <Text className="text-xs text-gray-600 mb-4 tracking-widest">
@@ -147,6 +171,20 @@ const HomeDashboard = ({ navigation }) => {
               <Feather name="bell" size={16} color="#fff" />
               <Text className="text-white ml-4 text-base font-normal">
                 Notifications
+              </Text>
+            </View>
+            <Feather name="arrow-right" size={16} color="#555" />
+          </TouchableOpacity>
+
+          {/* Chat with AI */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Chat")}
+            className="flex-row justify-between items-center py-4.5 border-b border-zinc-800"
+          >
+            <View className="flex-row items-center">
+              <Feather name="zap" size={16} color="#3b82f6" />
+              <Text className="text-white ml-4 text-base font-normal">
+                Chat with AI
               </Text>
             </View>
             <Feather name="arrow-right" size={16} color="#555" />
