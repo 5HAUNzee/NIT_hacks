@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { useUser, useAuth } from "@clerk/clerk-expo";
 import { doc, getDoc } from "firebase/firestore";
@@ -61,8 +60,8 @@ const HomeDashboard = ({ navigation }) => {
 
   if (!userLoaded || !authLoaded || loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#0a0a0a" }}>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <SafeAreaView className="flex-1 bg-black">
+        <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#fff" />
         </View>
       </SafeAreaView>
@@ -70,190 +69,123 @@ const HomeDashboard = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0a0a0a" }}>
+    <SafeAreaView className="flex-1 bg-black">
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Minimal Header */}
-        <View style={{ paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+        {/* Header */}
+        <View className="px-6 pt-20 pb-10">
+          <View className="flex-row justify-between items-start">
             <View>
-              <Text style={{ fontSize: 14, color: "#666", marginBottom: 8, letterSpacing: 2 }}>
+              <Text className="text-xs text-gray-600 mb-2 tracking-widest">
                 DASHBOARD
               </Text>
-              <Text style={{ fontSize: 36, fontWeight: "300", color: "#fff", letterSpacing: -1 }}>
+              <Text className="text-5xl font-light text-white">
                 {firebaseData?.firstName || "Hello"}
               </Text>
             </View>
             <TouchableOpacity
               onPress={handleLogout}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: "#111",
-                justifyContent: "center",
-                alignItems: "center",
-                borderWidth: 1,
-                borderColor: "#222",
-              }}
+              className="w-11 h-11 rounded-full bg-zinc-900 justify-center items-center border border-zinc-800"
             >
               <Feather name="log-out" size={18} color="#999" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Profile Section - Minimal Card */}
-        <View style={{ paddingHorizontal: 24, marginBottom: 48 }}>
-          <View
-            style={{
-              backgroundColor: "#111",
-              borderRadius: 24,
-              padding: 32,
-              borderWidth: 1,
-              borderColor: "#1a1a1a",
-            }}
-          >
-            {/* Initials Circle */}
-            <View
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: 36,
-                backgroundColor: "#fff",
-                justifyContent: "center",
-                alignItems: "center",
-                marginBottom: 24,
-              }}
-            >
-              <Text style={{ fontSize: 28, fontWeight: "600", color: "#0a0a0a" }}>
+        {/* Profile Card */}
+        <View className="px-6 mb-12">
+          <View className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800">
+            {/* Avatar */}
+            <View className="w-18 h-18 rounded-full bg-white justify-center items-center mb-6">
+              <Text className="text-3xl font-semibold text-black">
                 {firebaseData?.firstName?.charAt(0) || "U"}
                 {firebaseData?.lastName?.charAt(0) || ""}
               </Text>
             </View>
 
             {/* Name */}
-            <Text style={{ fontSize: 24, fontWeight: "400", color: "#fff", marginBottom: 4 }}>
+            <Text className="text-2xl font-normal text-white mb-1">
               {firebaseData?.firstName && firebaseData?.lastName
                 ? `${firebaseData.firstName} ${firebaseData.lastName}`
                 : "User"}
             </Text>
 
             {/* Email */}
-            <Text style={{ fontSize: 14, color: "#666", marginBottom: 2 }}>
+            <Text className="text-sm text-gray-500 mb-1">
               {firebaseData?.email || user?.primaryEmailAddress?.emailAddress}
             </Text>
 
             {/* Username */}
             {firebaseData?.username && (
-              <Text style={{ fontSize: 13, color: "#444", marginTop: 4 }}>
+              <Text className="text-xs text-gray-600 mt-1">
                 @{firebaseData.username}
               </Text>
             )}
           </View>
         </View>
 
-        {/* Actions - Minimal List */}
-        <View style={{ paddingHorizontal: 24, paddingBottom: 60 }}>
-          <Text style={{ fontSize: 11, color: "#666", marginBottom: 16, letterSpacing: 2 }}>
+        
+        {/* Actions */}
+        <View className="px-6 pb-20">
+          <Text className="text-xs text-gray-600 mb-4 tracking-widest">
             QUICK ACTIONS
           </Text>
 
           {/* Edit Profile */}
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              paddingVertical: 18,
-              borderBottomWidth: 1,
-              borderBottomColor: "#1a1a1a",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <TouchableOpacity className="flex-row justify-between items-center py-4.5 border-b border-zinc-800">
+            <View className="flex-row items-center">
               <Feather name="edit-3" size={16} color="#fff" />
-              <Text style={{ color: "#fff", marginLeft: 16, fontSize: 15, fontWeight: "400" }}>
+              <Text className="text-white ml-4 text-base font-normal">
                 Edit Profile
               </Text>
             </View>
-            <Feather name="arrow-right" size={16} color="#444" />
+            <Feather name="arrow-right" size={16} color="#555" />
           </TouchableOpacity>
 
           {/* Notifications */}
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              paddingVertical: 18,
-              borderBottomWidth: 1,
-              borderBottomColor: "#1a1a1a",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <TouchableOpacity className="flex-row justify-between items-center py-4.5 border-b border-zinc-800">
+            <View className="flex-row items-center">
               <Feather name="bell" size={16} color="#fff" />
-              <Text style={{ color: "#fff", marginLeft: 16, fontSize: 15, fontWeight: "400" }}>
+              <Text className="text-white ml-4 text-base font-normal">
                 Notifications
               </Text>
             </View>
-            <Feather name="arrow-right" size={16} color="#444" />
+            <Feather name="arrow-right" size={16} color="#555" />
           </TouchableOpacity>
 
           {/* Settings */}
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              paddingVertical: 18,
-              borderBottomWidth: 1,
-              borderBottomColor: "#1a1a1a",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <TouchableOpacity className="flex-row justify-between items-center py-4.5 border-b border-zinc-800">
+            <View className="flex-row items-center">
               <Feather name="settings" size={16} color="#fff" />
-              <Text style={{ color: "#fff", marginLeft: 16, fontSize: 15, fontWeight: "400" }}>
+              <Text className="text-white ml-4 text-base font-normal">
                 Settings
               </Text>
             </View>
-            <Feather name="arrow-right" size={16} color="#444" />
+            <Feather name="arrow-right" size={16} color="#555" />
           </TouchableOpacity>
 
           {/* Help */}
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              paddingVertical: 18,
-              borderBottomWidth: 1,
-              borderBottomColor: "#1a1a1a",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <TouchableOpacity className="flex-row justify-between items-center py-4.5 border-b border-zinc-800">
+            <View className="flex-row items-center">
               <Feather name="help-circle" size={16} color="#fff" />
-              <Text style={{ color: "#fff", marginLeft: 16, fontSize: 15, fontWeight: "400" }}>
+              <Text className="text-white ml-4 text-base font-normal">
                 Help & Support
               </Text>
             </View>
-            <Feather name="arrow-right" size={16} color="#444" />
+            <Feather name="arrow-right" size={16} color="#555" />
           </TouchableOpacity>
 
           {/* Logout */}
           <TouchableOpacity
             onPress={handleLogout}
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              paddingVertical: 18,
-            }}
+            className="flex-row justify-between items-center py-4.5"
           >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View className="flex-row items-center">
               <Feather name="log-out" size={16} color="#ef4444" />
-              <Text style={{ color: "#ef4444", marginLeft: 16, fontSize: 15, fontWeight: "400" }}>
+              <Text className="text-red-500 ml-4 text-base font-normal">
                 Logout
               </Text>
             </View>
-            <Feather name="arrow-right" size={16} color="#444" />
+            <Feather name="arrow-right" size={16} color="#555" />
           </TouchableOpacity>
         </View>
       </ScrollView>
