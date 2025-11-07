@@ -158,7 +158,7 @@ const HomeDashboard = ({ navigation }) => {
         </View>
 
         {/* AI Chat Highlight Card */}
-        <View className="px-6 mb-12">
+        <View className="px-6 mb-6">
           <TouchableOpacity
             onPress={() => navigation.navigate("Chat")}
             className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl p-8 border border-blue-500 border-opacity-50"
@@ -177,6 +177,31 @@ const HomeDashboard = ({ navigation }) => {
               </View>
               <View className="w-12 h-12 bg-white bg-opacity-20 rounded-full justify-center items-center">
                 <Feather name="message-circle" size={24} color="#fff" />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Object Detection Highlight Card */}
+        <View className="px-6 mb-12">
+          <TouchableOpacity
+            onPress={() => navigation.navigate("ObjectDetection")}
+            className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-3xl p-8 border border-purple-500 border-opacity-50"
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text className="text-xs text-purple-200 mb-2 tracking-widest">
+                  AI VISION
+                </Text>
+                <Text className="text-2xl font-semibold text-white mb-2">
+                  Object Detection
+                </Text>
+                <Text className="text-sm text-purple-100">
+                  Detect objects in real-time
+                </Text>
+              </View>
+              <View className="w-12 h-12 bg-white bg-opacity-20 rounded-full justify-center items-center">
+                <Feather name="camera" size={24} color="#fff" />
               </View>
             </View>
           </TouchableOpacity>
@@ -219,6 +244,20 @@ const HomeDashboard = ({ navigation }) => {
               <Feather name="zap" size={16} color="#3b82f6" />
               <Text className="text-white ml-4 text-base font-normal">
                 Chat with AI
+              </Text>
+            </View>
+            <Feather name="arrow-right" size={16} color="#555" />
+          </TouchableOpacity>
+
+          {/* Object Detection */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate("ObjectDetection")}
+            className="flex-row justify-between items-center py-4.5 border-b border-zinc-800"
+          >
+            <View className="flex-row items-center">
+              <Feather name="camera" size={16} color="#9333ea" />
+              <Text className="text-white ml-4 text-base font-normal">
+                Object Detection
               </Text>
             </View>
             <Feather name="arrow-right" size={16} color="#555" />

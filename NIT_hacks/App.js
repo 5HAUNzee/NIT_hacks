@@ -16,6 +16,7 @@ import Login from "./user_interfaces/auth/Login";
 import Homedashboard from "./user_interfaces/home/Homedashboard";
 import SignUp from "./user_interfaces/auth/Signup";
 import ChatScreen from "./user_interfaces/home/Chat";
+import ObjectDetection from "./user_interfaces/home/ObjectDetection";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -96,6 +97,7 @@ function RootNavigator() {
       >
         <Stack.Screen name="HomeDashboard" component={Homedashboard} />
         <Stack.Screen name="Chat" component={ChatScreen} />
+        <Stack.Screen name="ObjectDetection" component={ObjectDetection} />
       </Stack.Navigator>
     );
   }
