@@ -14,7 +14,6 @@ import { Feather } from "@expo/vector-icons";
 import * as tf from "@tensorflow/tfjs";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import { cameraWithTensors } from "@tensorflow/tfjs-react-native";
-import { bundleResourceIO } from "@tensorflow/tfjs-react-native";
 
 const TensorCamera = cameraWithTensors(CameraView);
 
@@ -27,6 +26,7 @@ const ObjectDetection = ({ navigation }) => {
   const [facing, setFacing] = useState("back");
   
   const requestAnimationFrameId = useRef(null);
+  const isDetectingRef = useRef(false);
 
   useEffect(() => {
     const initializeTensorFlow = async () => {
@@ -56,10 +56,15 @@ const ObjectDetection = ({ navigation }) => {
   }, []);
 
   const handleCameraStream = (images) => {
-    if (!model || !isDetecting) return;
+    if (!model) return;
 
     const loop = async () => {
       try {
+        // Check if detection is still active
+        if (!isDetectingRef.current) {
+          return;
+        }
+
         const nextImageTensor = images.next().value;
         
         if (nextImageTensor) {
@@ -73,19 +78,34 @@ const ObjectDetection = ({ navigation }) => {
           tf.dispose(nextImageTensor);
         }
 
-        requestAnimationFrameId.current = requestAnimationFrame(loop);
+        // Schedule next frame only if still detecting
+        if (isDetectingRef.current) {
+          requestAnimationFrameId.current = requestAnimationFrame(loop);
+        }
       } catch (error) {
         console.error("Detection error:", error);
       }
     };
 
-    loop();
+    if (isDetectingRef.current) {
+      loop();
+    }
   };
 
   const toggleDetection = () => {
-    setIsDetecting(!isDetecting);
-    if (!isDetecting) {
+    const newDetectingState = !isDetecting;
+    setIsDetecting(newDetectingState);
+    isDetectingRef.current = newDetectingState;
+    
+    if (newDetectingState) {
+      // Starting detection - clear previous predictions
       setPredictions([]);
+    } else {
+      // Stopping detection - cancel animation frame
+      if (requestAnimationFrameId.current) {
+        cancelAnimationFrame(requestAnimationFrameId.current);
+        requestAnimationFrameId.current = null;
+      }
     }
   };
 
