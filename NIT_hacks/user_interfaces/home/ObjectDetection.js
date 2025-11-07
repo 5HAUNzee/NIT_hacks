@@ -65,18 +65,23 @@ const ObjectDetection = ({ navigation }) => {
           return;
         }
 
-        const nextImageTensor = images.next().value;
+        const nextImage = images.next();
         
-        if (nextImageTensor) {
-          // Run object detection
-          const detections = await model.detect(nextImageTensor);
-          
-          // Update predictions
-          setPredictions(detections);
-
-          // Cleanup
-          tf.dispose(nextImageTensor);
+        // Check if iterator is done or has no value
+        if (nextImage.done || !nextImage.value) {
+          return;
         }
+        
+        const nextImageTensor = nextImage.value;
+        
+        // Run object detection
+        const detections = await model.detect(nextImageTensor);
+        
+        // Update predictions
+        setPredictions(detections);
+
+        // Cleanup tensor
+        tf.dispose(nextImageTensor);
 
         // Schedule next frame only if still detecting
         if (isDetectingRef.current) {
@@ -271,6 +276,7 @@ const ObjectDetection = ({ navigation }) => {
               />
             </TouchableOpacity>
 
+            {/* Spacer for visual balance */}
             <View className="w-14 h-14" />
           </View>
 
