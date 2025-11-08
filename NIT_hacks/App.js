@@ -16,6 +16,8 @@ import Login from "./user_interfaces/auth/Login";
 import Homedashboard from "./user_interfaces/home/Homedashboard";
 import SignUp from "./user_interfaces/auth/Signup";
 import ChatScreen from "./user_interfaces/home/Chat";
+import CreateProject from "./user_interfaces/home/CreateProject";
+import ProjectDetails from "./user_interfaces/home/ProjectDetails";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -96,6 +98,8 @@ function RootNavigator() {
       >
         <Stack.Screen name="HomeDashboard" component={Homedashboard} />
         <Stack.Screen name="Chat" component={ChatScreen} />
+        <Stack.Screen name="CreateProject" component={CreateProject} />
+        <Stack.Screen name="ProjectDetails" component={ProjectDetails} />
       </Stack.Navigator>
     );
   }
