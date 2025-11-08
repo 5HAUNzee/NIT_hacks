@@ -22,6 +22,7 @@ import StudyCircles from "./user_interfaces/home/StudyCircles";
 import CreateCircle from "./user_interfaces/home/CreateCircle";
 import CircleDetails from "./user_interfaces/home/CircleDetails";
 import Feed from "./user_interfaces/home/Feed";
+import Profile from "./user_interfaces/home/Profile";
 
 
 
@@ -112,6 +113,7 @@ function RootNavigator() {
         <Stack.Screen name="CreateCircle" component={CreateCircle} />
         <Stack.Screen name="CircleDetails" component={CircleDetails} />
         <Stack.Screen name="Feed" component={Feed} />
+        <Stack.Screen name="Profile" component={Profile} />
       </Stack.Navigator>
     );
   }

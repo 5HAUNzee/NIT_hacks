@@ -25,6 +25,7 @@ const SignUp = ({ navigation }) => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [githubLink, setGithubLink] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -47,6 +48,7 @@ const SignUp = ({ navigation }) => {
         lastName: userData.lastName || "",
         email: userData.email || "",
         username: userData.username || "",
+        githubLink: userData.githubLink || "",
         profilePic: userData.profilePic || null,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -157,6 +159,7 @@ const SignUp = ({ navigation }) => {
           lastName: lastName.trim(),
           email: email.trim(),
           username: username.trim(),
+          githubLink: githubLink.trim(),
           profilePic: null,
         };
 
@@ -481,6 +484,37 @@ const SignUp = ({ navigation }) => {
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
+                    autoCapitalize="none"
+                    editable={!loading}
+                    style={{
+                      backgroundColor: "#1e293b",
+                      color: "#fff",
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      borderColor: "#334155",
+                      fontSize: 16,
+                    }}
+                  />
+                </View>
+
+                <View style={{ marginBottom: 16 }}>
+                  <Text
+                    style={{
+                      color: "#e2e8f0",
+                      fontWeight: "600",
+                      marginBottom: 10,
+                      fontSize: 14,
+                    }}
+                  >
+                    GitHub Profile Link
+                  </Text>
+                  <TextInput
+                    placeholder="https://github.com/yourusername"
+                    placeholderTextColor="#475569"
+                    value={githubLink}
+                    onChangeText={setGithubLink}
                     autoCapitalize="none"
                     editable={!loading}
                     style={{
