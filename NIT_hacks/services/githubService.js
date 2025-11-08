@@ -1,5 +1,7 @@
-// Get GitHub token from environment variables
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || process.env.EXPO_PUBLIC_GITHUB_TOKEN;
+import { GITHUB_TOKEN } from '@env';
+
+// Debug: Check if token is loaded (only log if it exists, don't expose the actual token)
+console.log('GitHub token loaded:', GITHUB_TOKEN ? 'Yes (token present)' : 'No (using rate-limited API)');
 
 /**
  * Extract GitHub username from various GitHub URL formats
@@ -52,21 +54,35 @@ export const fetchGithubProfile = async (githubLink) => {
     const username = extractGithubUsername(githubLink);
     
     if (!username) {
-      throw new Error('Invalid GitHub link or username');
+      console.log('Invalid GitHub link or username:', githubLink);
+      return null;
+    }
+    
+    // Prepare headers - token is optional
+    const headers = {
+      'Accept': 'application/vnd.github.v3+json',
+    };
+    
+    // Only add authorization if token exists
+    if (GITHUB_TOKEN) {
+      headers['Authorization'] = `token ${GITHUB_TOKEN}`;
     }
     
     const response = await fetch(`https://api.github.com/users/${username}`, {
-      headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
+      headers,
     });
     
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error('GitHub user not found');
+        console.log('GitHub user not found:', username);
+        return null;
       }
-      throw new Error(`GitHub API error: ${response.status}`);
+      if (response.status === 403) {
+        console.log('GitHub API rate limit exceeded. Add GITHUB_TOKEN to .env for higher limits');
+        return null;
+      }
+      console.log(`GitHub API error: ${response.status}`);
+      return null;
     }
     
     const data = await response.json();
@@ -106,21 +122,33 @@ export const fetchGithubRepos = async (githubLink, limit = 10) => {
     const username = extractGithubUsername(githubLink);
     
     if (!username) {
-      throw new Error('Invalid GitHub link or username');
+      console.log('Invalid GitHub link or username:', githubLink);
+      return null;
+    }
+    
+    // Prepare headers - token is optional
+    const headers = {
+      'Accept': 'application/vnd.github.v3+json',
+    };
+    
+    // Only add authorization if token exists
+    if (GITHUB_TOKEN) {
+      headers['Authorization'] = `token ${GITHUB_TOKEN}`;
     }
     
     const response = await fetch(
       `https://api.github.com/users/${username}/repos?sort=updated&per_page=${limit}`,
       {
-        headers: {
-          'Authorization': `token ${GITHUB_TOKEN}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
+        headers,
       }
     );
     
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status}`);
+      if (response.status === 403) {
+        console.log('GitHub API rate limit exceeded');
+      }
+      console.log(`GitHub API error: ${response.status}`);
+      return null;
     }
     
     const data = await response.json();
@@ -160,21 +188,33 @@ export const fetchGithubActivity = async (githubLink, limit = 10) => {
     const username = extractGithubUsername(githubLink);
     
     if (!username) {
-      throw new Error('Invalid GitHub link or username');
+      console.log('Invalid GitHub link or username:', githubLink);
+      return null;
+    }
+    
+    // Prepare headers - token is optional
+    const headers = {
+      'Accept': 'application/vnd.github.v3+json',
+    };
+    
+    // Only add authorization if token exists
+    if (GITHUB_TOKEN) {
+      headers['Authorization'] = `token ${GITHUB_TOKEN}`;
     }
     
     const response = await fetch(
       `https://api.github.com/users/${username}/events/public?per_page=${limit}`,
       {
-        headers: {
-          'Authorization': `token ${GITHUB_TOKEN}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
+        headers,
       }
     );
     
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status}`);
+      if (response.status === 403) {
+        console.log('GitHub API rate limit exceeded');
+      }
+      console.log(`GitHub API error: ${response.status}`);
+      return null;
     }
     
     const data = await response.json();
@@ -202,8 +242,11 @@ export const fetchGithubStats = async (githubLink) => {
     const username = extractGithubUsername(githubLink);
     
     if (!username) {
-      throw new Error('Invalid GitHub link or username');
+      console.log('Invalid GitHub link or username:', githubLink);
+      return null;
     }
+    
+    console.log('Fetching GitHub stats for:', username);
     
     // Fetch profile and repos in parallel
     const [profile, repos] = await Promise.all([
@@ -211,8 +254,14 @@ export const fetchGithubStats = async (githubLink) => {
       fetchGithubRepos(githubLink, 100), // Fetch more repos for accurate stats
     ]);
     
-    if (!profile || !repos) {
-      throw new Error('Failed to fetch GitHub data');
+    if (!profile) {
+      console.log('Failed to fetch GitHub profile for:', username);
+      return null;
+    }
+    
+    if (!repos) {
+      console.log('Failed to fetch GitHub repos for:', username);
+      return null;
     }
     
     // Calculate stats from repos
