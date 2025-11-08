@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,58 +9,34 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  StyleSheet,
-  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { collection, addDoc, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase.config";
-import { collection, addDoc } from "firebase/firestore";
 import { useUser } from "@clerk/clerk-expo";
-
-const { width, height } = Dimensions.get("window");
 
 const AddEvent = ({ navigation }) => {
   const { user } = useUser();
-  const mapRef = useRef(null);
-  
+
   // Form state
   const [title, setTitle] = useState("");
   const [type, setType] = useState("Hackathon");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [location, setLocation] = useState("");
+  const [latitude, setLatitude] = useState("22.2555");
+  const [longitude, setLongitude] = useState("84.9030");
   const [description, setDescription] = useState("");
   const [organizer, setOrganizer] = useState("");
   const [participants, setParticipants] = useState("");
   const [registrationFee, setRegistrationFee] = useState("");
   const [tags, setTags] = useState("");
   const [status, setStatus] = useState("Open");
-  
-  // Map state
-  const [selectedLocation, setSelectedLocation] = useState({
-    latitude: 22.2555,
-    longitude: 84.9030,
-  });
-  const [showMap, setShowMap] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const eventTypes = ["Hackathon", "Workshop", "Conference", "Competition"];
   const statusOptions = ["Open", "Upcoming", "Closed"];
-
-  const handleMapPress = (event) => {
-    const { latitude, longitude } = event.nativeEvent.coordinate;
-    setSelectedLocation({ latitude, longitude });
-  };
-
-  const confirmLocation = () => {
-    setShowMap(false);
-    Alert.alert(
-      "Location Selected",
-      `Coordinates: ${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)}`
-    );
-  };
 
   const validateForm = () => {
     if (!title.trim()) {
@@ -77,6 +53,14 @@ const AddEvent = ({ navigation }) => {
     }
     if (!location.trim()) {
       Alert.alert("Error", "Please enter event location");
+      return false;
+    }
+    if (!latitude.trim() || isNaN(parseFloat(latitude))) {
+      Alert.alert("Error", "Please enter valid latitude");
+      return false;
+    }
+    if (!longitude.trim() || isNaN(parseFloat(longitude))) {
+      Alert.alert("Error", "Please enter valid longitude");
       return false;
     }
     if (!description.trim()) {
@@ -101,16 +85,16 @@ const AddEvent = ({ navigation }) => {
         date: date.trim(),
         time: time.trim(),
         location: location.trim(),
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        description: description.trim(),
         organizer: organizer.trim(),
         participants: participants ? parseInt(participants) : 0,
-        latitude: selectedLocation.latitude,
-        longitude: selectedLocation.longitude,
-        description: description.trim(),
+        registrationFee: registrationFee.trim() || "Free",
         tags: tags
           .split(",")
           .map((tag) => tag.trim())
           .filter((tag) => tag),
-        registrationFee: registrationFee.trim() || "Free",
         status,
         createdBy: user?.id || "anonymous",
         createdByName: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Anonymous",
@@ -123,362 +107,254 @@ const AddEvent = ({ navigation }) => {
       console.log("Event created with ID:", docRef.id);
 
       Alert.alert("Success", "Event created successfully!", [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
+        { text: "OK", onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
+      Alert.alert("Error", error.message || "Failed to create event. Please try again.");
       console.error("Error creating event:", error);
-      Alert.alert(
-        "Error", 
-        error.message || "Failed to create event. Please try again."
-      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getEventTypeColor = (eventType) => {
-    switch (eventType) {
-      case "Hackathon":
-        return "#3b82f6";
-      case "Workshop":
-        return "#10b981";
-      case "Conference":
-        return "#8b5cf6";
-      case "Competition":
-        return "#f97316";
-      default:
-        return "#6b7280";
-    }
-  };
-
-  if (showMap) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
-        {/* Map Header */}
-        <View className="bg-white px-6 py-4 border-b border-gray-200">
-          <View className="flex-row justify-between items-center">
-            <TouchableOpacity onPress={() => setShowMap(false)}>
-              <Feather name="arrow-left" size={24} color="#1f2937" />
-            </TouchableOpacity>
-            <Text className="text-lg font-bold text-gray-900">
-              Select Event Location
-            </Text>
-            <View style={{ width: 24 }} />
-          </View>
-          <Text className="text-sm text-gray-600 mt-2 text-center">
-            Tap on the map to select location
-          </Text>
-        </View>
-
-        {/* Map */}
-        <MapView
-          ref={mapRef}
-          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          style={styles.map}
-          initialRegion={{
-            latitude: selectedLocation.latitude,
-            longitude: selectedLocation.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          }}
-          onPress={handleMapPress}
-          showsUserLocation={true}
-          showsMyLocationButton={true}
-        >
-          <Marker
-            coordinate={selectedLocation}
-            pinColor={getEventTypeColor(type)}
-            draggable
-            onDragEnd={(e) =>
-              setSelectedLocation(e.nativeEvent.coordinate)
-            }
-            title="Event Location"
-            description="Drag to adjust position"
-          />
-        </MapView>
-
-        {/* Location Info Card */}
-        <View className="bg-white px-6 py-4 border-t border-gray-200">
-          <View className="mb-3">
-            <Text className="text-sm text-gray-600 mb-1">Selected Coordinates</Text>
-            <View className="flex-row items-center">
-              <Feather name="map-pin" size={16} color="#3b82f6" />
-              <Text className="text-base font-semibold text-gray-900 ml-2">
-                {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
-              </Text>
-            </View>
-          </View>
-          
-          <TouchableOpacity
-            onPress={confirmLocation}
-            className="bg-blue-600 py-4 rounded-xl items-center"
-          >
-            <Text className="text-white font-bold text-base">Confirm Location</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
         {/* Header */}
-        <View className="bg-white px-6 py-4 border-b border-gray-100">
-          <View className="flex-row justify-between items-center">
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Feather name="arrow-left" size={24} color="#1f2937" />
-            </TouchableOpacity>
-            <Text className="text-xl font-bold text-gray-900">Create Event</Text>
-            <View style={{ width: 24 }} />
-          </View>
+        <View
+          style={{
+            backgroundColor: "white",
+            padding: 16,
+            borderBottomColor: "#e5e7eb",
+            borderBottomWidth: 1,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Feather name="arrow-left" size={24} color="#1f2937" />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 20, fontWeight: "bold", color: "#1f2937" }}>
+            Create Event
+          </Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          <View className="px-6 py-6">
-            {/* Event Title */}
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Event Title *
-              </Text>
-              <TextInput
-                placeholder="e.g., HackNIT 2024"
-                placeholderTextColor="#9ca3af"
-                value={title}
-                onChangeText={setTitle}
-                className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900"
-              />
-            </View>
+        <ScrollView style={{ padding: 16 }}>
+          {/* Event Title */}
+          <Text style={{ fontWeight: "600", marginBottom: 4 }}>Event Title *</Text>
+          <TextInput
+            placeholder="e.g., HackNIT 2024"
+            placeholderTextColor="#9ca3af"
+            value={title}
+            onChangeText={setTitle}
+            style={inputStyle}
+          />
 
-            {/* Event Type */}
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Event Type *
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                {eventTypes.map((eventType) => (
-                  <TouchableOpacity
-                    key={eventType}
-                    onPress={() => setType(eventType)}
-                    className={`px-4 py-2 rounded-xl ${
-                      type === eventType ? "bg-blue-600" : "bg-white border border-gray-200"
-                    }`}
-                  >
-                    <Text
-                      className={`font-medium ${
-                        type === eventType ? "text-white" : "text-gray-700"
-                      }`}
-                    >
-                      {eventType}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Date and Time */}
-            <View className="flex-row gap-3 mb-4">
-              <View className="flex-1">
-                <Text className="text-sm font-semibold text-gray-700 mb-2">
-                  Date *
-                </Text>
-                <TextInput
-                  placeholder="Dec 15-17, 2024"
-                  placeholderTextColor="#9ca3af"
-                  value={date}
-                  onChangeText={setDate}
-                  className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900"
-                />
-              </View>
-              <View className="flex-1">
-                <Text className="text-sm font-semibold text-gray-700 mb-2">
-                  Time *
-                </Text>
-                <TextInput
-                  placeholder="9:00 AM"
-                  placeholderTextColor="#9ca3af"
-                  value={time}
-                  onChangeText={setTime}
-                  className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900"
-                />
-              </View>
-            </View>
-
-            {/* Location Name */}
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Location Name *
-              </Text>
-              <TextInput
-                placeholder="NIT Rourkela, Main Auditorium"
-                placeholderTextColor="#9ca3af"
-                value={location}
-                onChangeText={setLocation}
-                className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900"
-              />
-            </View>
-
-            {/* Map Location Picker */}
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Location on Map *
-              </Text>
+          {/* Event Type */}
+          <Text style={{ fontWeight: "600", marginTop: 16, marginBottom: 4 }}>Event Type *</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 16 }}>
+            {eventTypes.map((option) => (
               <TouchableOpacity
-                onPress={() => setShowMap(true)}
-                className="bg-white border border-gray-200 rounded-xl p-4 flex-row items-center"
+                key={option}
+                onPress={() => setType(option)}
+                style={{
+                  marginRight: 8,
+                  marginBottom: 8,
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: 20,
+                  backgroundColor: type === option ? "#3b82f6" : "#f3f4f6",
+                }}
               >
-                <View className="w-10 h-10 bg-blue-100 rounded-lg items-center justify-center">
-                  <Feather name="map-pin" size={20} color="#3b82f6" />
-                </View>
-                <View className="ml-3 flex-1">
-                  <Text className="text-sm font-semibold text-gray-900">
-                    Select Location on Map
-                  </Text>
-                  <Text className="text-xs text-gray-500 mt-1">
-                    Lat: {selectedLocation.latitude.toFixed(4)}, Lng:{" "}
-                    {selectedLocation.longitude.toFixed(4)}
-                  </Text>
-                </View>
-                <Feather name="chevron-right" size={20} color="#9ca3af" />
+                <Text style={{ color: type === option ? "white" : "#4b5563", fontWeight: "600" }}>{option}</Text>
               </TouchableOpacity>
-            </View>
-
-            {/* Description */}
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Description *
-              </Text>
-              <TextInput
-                placeholder="Describe your event in detail..."
-                placeholderTextColor="#9ca3af"
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900"
-              />
-            </View>
-
-            {/* Organizer */}
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Organizer *
-              </Text>
-              <TextInput
-                placeholder="Technical Society"
-                placeholderTextColor="#9ca3af"
-                value={organizer}
-                onChangeText={setOrganizer}
-                className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900"
-              />
-            </View>
-
-            {/* Expected Participants and Fee */}
-            <View className="flex-row gap-3 mb-4">
-              <View className="flex-1">
-                <Text className="text-sm font-semibold text-gray-700 mb-2">
-                  Expected Participants
-                </Text>
-                <TextInput
-                  placeholder="100"
-                  placeholderTextColor="#9ca3af"
-                  value={participants}
-                  onChangeText={setParticipants}
-                  keyboardType="numeric"
-                  className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900"
-                />
-              </View>
-              <View className="flex-1">
-                <Text className="text-sm font-semibold text-gray-700 mb-2">
-                  Registration Fee
-                </Text>
-                <TextInput
-                  placeholder="Free or ₹100"
-                  placeholderTextColor="#9ca3af"
-                  value={registrationFee}
-                  onChangeText={setRegistrationFee}
-                  className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900"
-                />
-              </View>
-            </View>
-
-            {/* Tags */}
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Tags (comma separated)
-              </Text>
-              <TextInput
-                placeholder="Coding, Innovation, Prizes"
-                placeholderTextColor="#9ca3af"
-                value={tags}
-                onChangeText={setTags}
-                className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900"
-              />
-            </View>
-
-            {/* Status */}
-            <View className="mb-6">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Status
-              </Text>
-              <View className="flex-row gap-2">
-                {statusOptions.map((statusOption) => (
-                  <TouchableOpacity
-                    key={statusOption}
-                    onPress={() => setStatus(statusOption)}
-                    className={`px-4 py-2 rounded-xl ${
-                      status === statusOption
-                        ? "bg-green-600"
-                        : "bg-white border border-gray-200"
-                    }`}
-                  >
-                    <Text
-                      className={`font-medium ${
-                        status === statusOption ? "text-white" : "text-gray-700"
-                      }`}
-                    >
-                      {statusOption}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-              className={`py-4 rounded-xl items-center ${
-                isSubmitting ? "bg-gray-400" : "bg-blue-600"
-              }`}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text className="text-white font-bold text-base">Create Event</Text>
-              )}
-            </TouchableOpacity>
+            ))}
           </View>
+
+          {/* Date and Time */}
+          <View style={{ flexDirection: "row", marginBottom: 16 }}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={{ fontWeight: "600", marginBottom: 4 }}>Date *</Text>
+              <TextInput
+                placeholder="Dec 15-17, 2024"
+                placeholderTextColor="#9ca3af"
+                value={date}
+                onChangeText={setDate}
+                style={inputStyle}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: "600", marginBottom: 4 }}>Time *</Text>
+              <TextInput
+                placeholder="9:00 AM"
+                placeholderTextColor="#9ca3af"
+                value={time}
+                onChangeText={setTime}
+                style={inputStyle}
+              />
+            </View>
+          </View>
+
+          {/* Location Name */}
+          <Text style={{ fontWeight: "600", marginBottom: 4 }}>Location Name *</Text>
+          <TextInput
+            placeholder="NIT Rourkela, Main Auditorium"
+            placeholderTextColor="#9ca3af"
+            value={location}
+            onChangeText={setLocation}
+            style={inputStyle}
+          />
+
+          {/* Latitude and Longitude */}
+          <View style={{ flexDirection: "row", marginBottom:16 }}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={{ fontWeight: "600", marginBottom: 4 }}>Latitude *</Text>
+              <TextInput
+                placeholder="22.2555"
+                placeholderTextColor="#9ca3af"
+                keyboardType="numeric"
+                value={latitude}
+                onChangeText={setLatitude}
+                style={inputStyle}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: "600", marginBottom: 4 }}>Longitude *</Text>
+              <TextInput
+                placeholder="84.9030"
+                placeholderTextColor="#9ca3af"
+                keyboardType="numeric"
+                value={longitude}
+                onChangeText={setLongitude}
+                style={inputStyle}
+              />
+            </View>
+          </View>
+
+          {/* Description */}
+          <Text style={{ fontWeight: "600", marginBottom: 4 }}>Description *</Text>
+          <TextInput
+            placeholder="Describe your event in detail..."
+            placeholderTextColor="#9ca3af"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            style={{ ...inputStyle, height: 100 }}
+          />
+
+          {/* Organizer */}
+          <Text style={{ fontWeight: "600", marginBottom: 4 }}>Organizer *</Text>
+          <TextInput
+            placeholder="Technical Society"
+            placeholderTextColor="#9ca3af"
+            value={organizer}
+            onChangeText={setOrganizer}
+            style={inputStyle}
+          />
+
+          {/* Participants and Fee */}
+          <View style={{ flexDirection: "row", marginBottom: 16 }}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={{ fontWeight: "600", marginBottom: 4 }}>Expected Participants</Text>
+              <TextInput
+                placeholder="100"
+                placeholderTextColor="#9ca3af"
+                keyboardType="numeric"
+                value={participants}
+                onChangeText={setParticipants}
+                style={inputStyle}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: "600", marginBottom: 4 }}>Registration Fee</Text>
+              <TextInput
+                placeholder="Free or ₹100"
+                placeholderTextColor="#9ca3af"
+                value={registrationFee}
+                onChangeText={setRegistrationFee}
+                style={inputStyle}
+              />
+            </View>
+          </View>
+
+          {/* Tags */}
+          <Text style={{ fontWeight: "600", marginBottom: 4 }}>Tags (comma separated)</Text>
+          <TextInput
+            placeholder="Coding, Innovation, Prizes"
+            placeholderTextColor="#9ca3af"
+            value={tags}
+            onChangeText={setTags}
+            style={inputStyle}
+          />
+
+          {/* Status */}
+          <Text style={{ fontWeight: "600", marginBottom: 4 }}>Status</Text>
+          <View style={{ flexDirection: "row", marginBottom: 30 }}>
+            {statusOptions.map((statusOption) => (
+              <TouchableOpacity
+                key={statusOption}
+                onPress={() => setStatus(statusOption)}
+                style={{
+                  marginRight: 8,
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: 20,
+                  backgroundColor: status === statusOption ? "#22c55e" : "#f3f4f6",
+                }}
+              >
+                <Text
+                  style={{
+                    color: status === statusOption ? "white" : "#4b5563",
+                    fontWeight: "600",
+                  }}
+                >
+                  {statusOption}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Submit Button */}
+          <TouchableOpacity
+            onPress={handleSubmit}
+            disabled={isSubmitting}
+            style={{
+              backgroundColor: isSubmitting ? "#9ca3af" : "#3b82f6",
+              paddingVertical: 18,
+              borderRadius: 16,
+              alignItems: "center",
+              marginBottom: 40,
+            }}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={{ color: "white", fontWeight: "700", fontSize: 18 }}>
+                Create Event
+              </Text>
+            )}
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  map: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-});
+const inputStyle = {
+  backgroundColor: "white",
+  borderColor: "#e5e7eb",
+  borderWidth: 1,
+  borderRadius: 12,
+  padding: 14,
+  marginBottom: 20,
+  color: "#1f2937",
+};
 
 export default AddEvent;
-
