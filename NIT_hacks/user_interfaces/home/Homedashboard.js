@@ -10,7 +10,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useUser, useAuth } from "@clerk/clerk-expo";
-import { doc, getDoc, collection, query, orderBy, getDocs } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  orderBy,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "../../firebase.config";
 import ProfileSetupModal from "./ProfileSetupModal";
 
@@ -132,20 +139,21 @@ const HomeDashboard = ({ navigation }) => {
         <TouchableOpacity>
           <Feather name="menu" size={24} color="#1f2937" />
         </TouchableOpacity>
-        
+
         <View className="flex-row items-center gap-4">
           <TouchableOpacity className="relative">
             <Feather name="bell" size={24} color="#1f2937" />
             <View className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
           </TouchableOpacity>
-          
+
           {/* Profile Button */}
           <TouchableOpacity
             onPress={() => navigation.navigate("Profile")}
             className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center"
           >
             <Text className="text-blue-700 font-bold text-sm">
-              {user.firstName?.[0]}{user.lastName?.[0]}
+              {user.firstName?.[0]}
+              {user.lastName?.[0]}
             </Text>
           </TouchableOpacity>
         </View>
@@ -180,7 +188,9 @@ const HomeDashboard = ({ navigation }) => {
                 onPress={() => navigation.navigate("CreateProject")}
                 className="mt-4 bg-blue-600 px-6 py-2 rounded-lg"
               >
-                <Text className="text-white font-medium">Create First Project</Text>
+                <Text className="text-white font-medium">
+                  Create First Project
+                </Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -190,7 +200,9 @@ const HomeDashboard = ({ navigation }) => {
                   <TouchableOpacity
                     key={project.id}
                     onPress={() =>
-                      navigation.navigate("ProjectDetails", { projectId: project.id })
+                      navigation.navigate("ProjectDetails", {
+                        projectId: project.id,
+                      })
                     }
                     className="w-80 bg-gray-50 rounded-2xl overflow-hidden"
                   >
@@ -200,20 +212,33 @@ const HomeDashboard = ({ navigation }) => {
                     </View>
 
                     <View className="p-4">
-                      <Text className="text-sm text-gray-500 mb-1" numberOfLines={1}>
+                      <Text
+                        className="text-sm text-gray-500 mb-1"
+                        numberOfLines={1}
+                      >
                         {project.shortDescription}
                       </Text>
-                      <Text className="text-lg font-semibold text-gray-900 mb-2" numberOfLines={1}>
+                      <Text
+                        className="text-lg font-semibold text-gray-900 mb-2"
+                        numberOfLines={1}
+                      >
                         {project.title}
                       </Text>
 
                       {/* Skills Tags */}
                       <View className="flex-row flex-wrap gap-2 mb-3">
-                        {project.requiredSkills?.slice(0, 3).map((skill, index) => (
-                          <View key={index} className="bg-gray-200 px-3 py-1 rounded-full">
-                            <Text className="text-xs text-gray-700">{skill}</Text>
-                          </View>
-                        ))}
+                        {project.requiredSkills
+                          ?.slice(0, 3)
+                          .map((skill, index) => (
+                            <View
+                              key={index}
+                              className="bg-gray-200 px-3 py-1 rounded-full"
+                            >
+                              <Text className="text-xs text-gray-700">
+                                {skill}
+                              </Text>
+                            </View>
+                          ))}
                       </View>
 
                       <View className="flex-row items-center justify-between">
@@ -225,12 +250,16 @@ const HomeDashboard = ({ navigation }) => {
                         </View>
                         <View
                           className={`px-3 py-1 rounded-full ${
-                            project.status === "open" ? "bg-green-100" : "bg-gray-100"
+                            project.status === "open"
+                              ? "bg-green-100"
+                              : "bg-gray-100"
                           }`}
                         >
                           <Text
                             className={`text-xs font-medium ${
-                              project.status === "open" ? "text-green-700" : "text-gray-700"
+                              project.status === "open"
+                                ? "text-green-700"
+                                : "text-gray-700"
                             }`}
                           >
                             {project.status === "open" ? "Open" : "Closed"}
@@ -254,7 +283,9 @@ const HomeDashboard = ({ navigation }) => {
               <Text className="text-2xl font-bold text-gray-900 mt-3">
                 {allProjects.length}
               </Text>
-              <Text className="text-sm text-gray-600 mt-1">Active Projects</Text>
+              <Text className="text-sm text-gray-600 mt-1">
+                Active Projects
+              </Text>
               <Text className="text-xs text-gray-500 mt-1">Total projects</Text>
             </View>
 
@@ -282,7 +313,9 @@ const HomeDashboard = ({ navigation }) => {
               <Text className="text-2xl font-bold text-gray-900 mt-3">
                 {firebaseData?.upcomingEvents || 8}
               </Text>
-              <Text className="text-sm text-gray-600 mt-1">Upcoming Events</Text>
+              <Text className="text-sm text-gray-600 mt-1">
+                Upcoming Events
+              </Text>
               <Text className="text-xs text-gray-500 mt-1">Next 7 days</Text>
             </View>
           </View>
@@ -324,7 +357,7 @@ const HomeDashboard = ({ navigation }) => {
 
             {/* Community Feed - NEW */}
             <TouchableOpacity
-              onPress={() => navigation.navigate("Feed")}
+              onPress={() => navigation.navigate("CommunityList")}
               className="flex-row items-center bg-white border border-gray-200 rounded-xl p-4"
             >
               <View className="w-10 h-10 bg-pink-100 rounded-lg items-center justify-center">
@@ -352,7 +385,7 @@ const HomeDashboard = ({ navigation }) => {
 
             {/* Browse Events */}
             <TouchableOpacity
-              onPress={() => navigation.navigate("Events")}
+              onPress={() => navigation.navigate("BrowseEvents")}
               className="flex-row items-center bg-white border border-gray-200 rounded-xl p-4"
             >
               <View className="w-10 h-10 bg-orange-100 rounded-lg items-center justify-center">
@@ -375,7 +408,9 @@ const HomeDashboard = ({ navigation }) => {
           {/* Profile Completeness */}
           <View className="mb-4">
             <View className="flex-row justify-between mb-2">
-              <Text className="text-sm text-gray-600">Profile Completeness</Text>
+              <Text className="text-sm text-gray-600">
+                Profile Completeness
+              </Text>
               <Text className="text-sm font-semibold text-gray-900">
                 {firebaseData?.profileCompleted ? "100%" : "85%"}
               </Text>
@@ -383,7 +418,9 @@ const HomeDashboard = ({ navigation }) => {
             <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
               <View
                 className="h-full bg-blue-600 rounded-full"
-                style={{ width: firebaseData?.profileCompleted ? "100%" : "85%" }}
+                style={{
+                  width: firebaseData?.profileCompleted ? "100%" : "85%",
+                }}
               />
             </View>
           </View>
@@ -392,10 +429,15 @@ const HomeDashboard = ({ navigation }) => {
           <View className="mb-4">
             <View className="flex-row justify-between mb-2">
               <Text className="text-sm text-gray-600">Weekly Study Goal</Text>
-              <Text className="text-sm font-semibold text-gray-900">12/15 hrs</Text>
+              <Text className="text-sm font-semibold text-gray-900">
+                12/15 hrs
+              </Text>
             </View>
             <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <View className="h-full bg-green-600 rounded-full" style={{ width: "80%" }} />
+              <View
+                className="h-full bg-green-600 rounded-full"
+                style={{ width: "80%" }}
+              />
             </View>
           </View>
 
@@ -422,9 +464,21 @@ const HomeDashboard = ({ navigation }) => {
           </Text>
           <View className="gap-3">
             {[
-              { name: "Alex Turner", major: "CS Major, 3rd Year", initials: "AT" },
-              { name: "Maya Patel", major: "CS Major, 3rd Year", initials: "MP" },
-              { name: "Chris Lee", major: "CS Major, 3rd Year", initials: "CL" },
+              {
+                name: "Alex Turner",
+                major: "CS Major, 3rd Year",
+                initials: "AT",
+              },
+              {
+                name: "Maya Patel",
+                major: "CS Major, 3rd Year",
+                initials: "MP",
+              },
+              {
+                name: "Chris Lee",
+                major: "CS Major, 3rd Year",
+                initials: "CL",
+              },
             ].map((person, index) => (
               <View
                 key={index}
