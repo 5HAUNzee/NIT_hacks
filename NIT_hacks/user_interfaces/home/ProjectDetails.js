@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -22,10 +23,18 @@ const ProjectDetails = ({ route, navigation }) => {
   const [activeTab, setActiveTab] = useState("Overview");
   const [joining, setJoining] = useState(false);
   const [similarProjects, setSimilarProjects] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
   useEffect(() => {
     fetchProjectDetails();
   }, [projectId]);
+
+  useEffect(() => {
+    if (project?.currentMembers && activeTab === "Team") {
+      fetchTeamMembers();
+    }
+  }, [project?.currentMembers, activeTab]);
 
   const fetchProjectDetails = async () => {
     try {
@@ -68,6 +77,33 @@ const ProjectDetails = ({ route, navigation }) => {
       setSimilarProjects(projects.slice(0, 2)); // Show only 2
     } catch (error) {
       console.error("Error fetching similar projects:", error);
+    }
+  };
+
+  const fetchTeamMembers = async () => {
+    if (!project?.currentMembers || project.currentMembers.length === 0) {
+      setTeamMembers([]);
+      return;
+    }
+
+    try {
+      setLoadingMembers(true);
+      const membersData = [];
+      
+      for (const memberId of project.currentMembers) {
+        const userRef = doc(db, "users", memberId);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+          membersData.push({ id: userSnap.id, ...userSnap.data() });
+        }
+      }
+      
+      setTeamMembers(membersData);
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+    } finally {
+      setLoadingMembers(false);
     }
   };
 
@@ -158,7 +194,7 @@ const ProjectDetails = ({ route, navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView className="w-full" showsVerticalScrollIndicator={false}>
         {/* Hero Section */}
         <View className="px-6 py-6 bg-gradient-to-br from-gray-900 to-gray-800">
           <View className="flex-row gap-2 mb-3">
@@ -172,35 +208,48 @@ const ProjectDetails = ({ route, navigation }) => {
                 {project.status === "open" ? "Active" : project.status}
               </Text>
             </View>
+
+            {project.projectLinks?.github && (
+              <TouchableOpacity
+                onPress={() => openLink(project.projectLinks.github)}
+                className="bg-gray-800 px-3 py-1 rounded-full flex-row items-center gap-1"
+              >
+                <Feather name="github" size={12} color="#fff" />
+                <Text className="text-xs text-white font-medium">GitHub</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          <Text className="text-2xl font-bold text-white mb-2">
+          
+
+          {/* <Text className="text-2xl font-bold text-white mb-2">
             {project.title}
-          </Text>
-          <Text className="text-sm text-gray-300 mb-4">
+          </Text> */}
+          {/* <Text className="text-sm text-gray-300 mb-4">
             {project.shortDescription}
-          </Text>
+          </Text> */}
         </View>
 
         {/* Required Skills */}
-        <View className="px-6 py-4 border-b border-gray-100">
-          <View className="flex-row flex-wrap gap-2">
+        <Text className="text-base font-semibold px-6 text-gray-900 mb-3">
+            Required Skills
+        </Text>
+        <View className="flex-row flex-wrap gap-2 mb-6 px-6">
             {project.requiredSkills?.map((skill, index) => (
-              <View key={index} className="bg-gray-100 px-3 py-1 rounded-lg">
-                <Text className="text-sm text-gray-700">{skill}</Text>
-              </View>
+            <View key={index} className="bg-blue-50 px-3 py-2 rounded-lg">
+                <Text className="text-sm text-blue-700">{skill}</Text>
+            </View>
             ))}
-          </View>
         </View>
 
         {/* Tabs */}
-        <View className="flex-row border-b border-gray-200">
+        <View className="flex-row border-b border-gray-200 w-fit">
           {["Overview", "Team", "Discussion", "Resources"].map((tab) => (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
               className={`flex-1 py-3 ${
-                activeTab === tab ? "border-b-2 border-blue-600" : ""
+                activeTab === tab ? "border-b-2 border-blue-600 text-blue-600" : ""
               }`}
             >
               <Text
@@ -225,7 +274,7 @@ const ProjectDetails = ({ route, navigation }) => {
             </Text>
 
             {/* Required Skills Section */}
-            <Text className="text-base font-semibold text-gray-900 mb-3">
+            {/* <Text className="text-base font-semibold text-gray-900 mb-3">
               Required Skills
             </Text>
             <View className="flex-row flex-wrap gap-2 mb-6">
@@ -234,23 +283,23 @@ const ProjectDetails = ({ route, navigation }) => {
                   <Text className="text-sm text-blue-700">{skill}</Text>
                 </View>
               ))}
-            </View>
+            </View> */}
           </View>
         )}
 
         {/* Open Roles */}
         {activeTab === "Overview" && project.openRoles && project.openRoles.length > 0 && (
-          <View className="px-6 pb-6">
+          <View className="px-6 pb-6 w-fit">
             <Text className="text-base font-semibold text-gray-900 mb-4">
               Open Roles
             </Text>
             {project.openRoles.map((role, index) => (
               <View
                 key={index}
-                className="bg-gray-50 rounded-xl p-4 mb-3 flex-row justify-between items-center"
+                className="bg-gray-50 rounded-xl p-4 mb-3 flex-row justify-between items-center w-[80%]"
               >
-                <View>
-                  <Text className="text-base font-medium text-gray-900 mb-1">
+                <View className="w-full">
+                  <Text className="text-wrap font-medium text-gray-900 mb-1">
                     {role.title}
                   </Text>
                   <View className="flex-row items-center">
@@ -304,7 +353,7 @@ const ProjectDetails = ({ route, navigation }) => {
             {/* Status */}
             <View className="flex-row items-center py-3">
               <Text className="text-gray-600 flex-1">Status</Text>
-              <Text className="text-gray-900 font-medium capitalize">
+              <Text className="text-green-500 font-medium capitalize">
                 {project.status}
               </Text>
             </View>
@@ -363,8 +412,106 @@ const ProjectDetails = ({ route, navigation }) => {
           </View>
         )}
 
+        {/* Team Tab */}
+        {activeTab === "Team" && (
+          <View className="px-6 py-6">
+            <Text className="text-lg font-semibold text-gray-900 mb-4">
+              Team Members ({teamMembers.length})
+            </Text>
+
+            {loadingMembers ? (
+              <View className="py-12 items-center">
+                <ActivityIndicator size="large" color="#3b82f6" />
+              </View>
+            ) : teamMembers.length === 0 ? (
+              <View className="py-12 items-center">
+                <Feather name="users" size={48} color="#d1d5db" />
+                <Text className="text-gray-500 mt-4">No team members yet</Text>
+              </View>
+            ) : (
+              <View className="space-y-3">
+                {teamMembers.map((member) => (
+                  <TouchableOpacity
+                    key={member.id}
+                    onPress={() => navigation.navigate("Profile", { userId: member.id })}
+                    className="bg-white border border-gray-200 rounded-xl p-4 mb-3"
+                    activeOpacity={0.7}
+                  >
+                    <View className="flex-row items-center">
+                      {/* Avatar */}
+                      <View className="mr-4">
+                        {member.profileImage ? (
+                          <Image
+                            source={{ uri: member.profileImage }}
+                            className="w-14 h-14 rounded-full bg-gray-200"
+                          />
+                        ) : (
+                          <View className="w-14 h-14 rounded-full bg-blue-100 items-center justify-center">
+                            <Text className="text-blue-600 font-semibold text-xl">
+                              {member.name?.charAt(0)?.toUpperCase() || "?"}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Member Info */}
+                      <View className="flex-1">
+                        <View className="flex-row items-center mb-1">
+                          <Text className="text-base font-semibold text-gray-900">
+                            {member.name || "Anonymous User"}
+                          </Text>
+                          {member.id === project.createdBy && (
+                            <View className="ml-2 bg-purple-100 px-2 py-0.5 rounded-full">
+                              <Text className="text-xs text-purple-700 font-medium">
+                                Creator
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+
+                        {/* Branch & Year */}
+                        {(member.branch || member.year) && (
+                          <Text className="text-sm text-gray-600 mb-1">
+                            {member.branch || "N/A"} • {member.year || "N/A"}
+                          </Text>
+                        )}
+
+                        {/* Skills */}
+                        {member.skills && member.skills.length > 0 && (
+                          <View className="flex-row flex-wrap gap-1 mt-2">
+                            {member.skills.slice(0, 3).map((skill, index) => (
+                              <View
+                                key={index}
+                                className="bg-gray-100 px-2 py-1 rounded"
+                              >
+                                <Text className="text-xs text-gray-700">
+                                  {skill}
+                                </Text>
+                              </View>
+                            ))}
+                            {member.skills.length > 3 && (
+                              <View className="bg-gray-100 px-2 py-1 rounded">
+                                <Text className="text-xs text-gray-700">
+                                  +{member.skills.length - 3}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Arrow Icon */}
+                      <Feather name="chevron-right" size={20} color="#9ca3af" />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Other Tabs Placeholder */}
-        {activeTab !== "Overview" && (
+        {(activeTab === "Discussion" || activeTab === "Resources") && (
           <View className="px-6 py-12 items-center">
             <Feather name="inbox" size={48} color="#d1d5db" />
             <Text className="text-gray-500 mt-4">{activeTab} coming soon</Text>

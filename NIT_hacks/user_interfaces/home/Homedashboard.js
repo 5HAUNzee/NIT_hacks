@@ -6,8 +6,11 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  StyleSheet,
+  Platform,
+  Dimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useUser, useAuth } from "@clerk/clerk-expo";
 import { doc, getDoc, collection, query, orderBy, getDocs } from "firebase/firestore";
@@ -152,19 +155,69 @@ const HomeDashboard = ({ navigation }) => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+
+        {/* Stats Grid */}
+        <View className="px-6 py-4">
+          <View className="flex-row flex-wrap gap-3">
+            {/* Active Projects */}
+            <View className="flex-1 min-w-[45%] bg-blue-50 rounded-2xl p-4">
+              <Feather name="folder" size={24} color="#3b82f6" />
+              <Text className="text-2xl font-bold text-gray-900 mt-3">
+                {allProjects.length}
+              </Text>
+              <Text className="text-sm text-gray-600 mt-1">Active Projects</Text>
+              <Text className="text-xs text-gray-500 mt-1">Total projects</Text>
+            </View>
+
+            {/* Study Circles */}
+            <View className="flex-1 min-w-[45%] bg-green-50 rounded-2xl p-4">
+              <Feather name="users" size={24} color="#10b981" />
+              <Text className="text-2xl font-bold text-gray-900 mt-3">
+                {firebaseData?.studyCircles || 3}
+              </Text>
+              <Text className="text-sm text-gray-600 mt-1">Study Circles</Text>
+              <Text className="text-xs text-gray-500 mt-1">Member of</Text>
+            </View>
+
+            {/* Attendance */}
+            {/* <View className="flex-1 min-w-[45%] bg-purple-50 rounded-2xl p-4">
+              <Feather name="target" size={24} color="#8b5cf6" />
+              <Text className="text-2xl font-bold text-gray-900 mt-3">87%</Text>
+              <Text className="text-sm text-gray-600 mt-1">Attendance</Text>
+              <Text className="text-xs text-gray-500 mt-1">This month</Text>
+            </View> */}
+
+            {/* Upcoming Events */}
+            <View className="flex-1 min-w-[45%] bg-orange-50 rounded-2xl p-4">
+              <Feather name="calendar" className="text-center" size={24} color="#f97316" />
+              <Text className="text-2xl text-center font-bold text-gray-900 mt-3">
+                {firebaseData?.upcomingEvents || 5}
+              </Text>
+              <Text className="text-sm text-gray-600 mt-1 text-center">Upcoming Events</Text>
+              <Text className="text-xs text-gray-500 mt-1 text-center">Next 7 days</Text>
+            </View>
+          </View>
+        </View>
+
         {/* All Projects Section */}
         <View className="px-6 pt-6 pb-4">
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-xl font-semibold text-gray-900">
-              Projects ({allProjects.length})
-            </Text>
-            <TouchableOpacity
+            <View>
+                <Text className="text-xl font-semibold text-gray-900">
+                Active Projects ({allProjects.length})
+                </Text>
+                <Text className="text-sm font-normal text-gray-500">
+                Projects that you would like to join and contribute.
+                Build in public and learn.
+                </Text>
+            </View>
+            {/* <TouchableOpacity
               onPress={() => navigation.navigate("Projects")}
               className="flex-row items-center"
             >
               <Text className="text-blue-600 font-medium mr-1">View All</Text>
               <Feather name="arrow-right" size={16} color="#3b82f6" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {projectsLoading ? (
@@ -200,11 +253,11 @@ const HomeDashboard = ({ navigation }) => {
                     </View>
 
                     <View className="p-4">
-                      <Text className="text-sm text-gray-500 mb-1" numberOfLines={1}>
-                        {project.shortDescription}
-                      </Text>
-                      <Text className="text-lg font-semibold text-gray-900 mb-2" numberOfLines={1}>
+                      <Text className="text-lg font-semibold text-gray-900 mb-0" numberOfLines={1}>
                         {project.title}
+                      </Text>
+                      <Text className="text-sm text-gray-500 mb-2" numberOfLines={1}>
+                        {project.shortDescription}
                       </Text>
 
                       {/* Skills Tags */}
@@ -245,126 +298,7 @@ const HomeDashboard = ({ navigation }) => {
           )}
         </View>
 
-        {/* Stats Grid */}
-        <View className="px-6 py-4">
-          <View className="flex-row flex-wrap gap-3">
-            {/* Active Projects */}
-            <View className="flex-1 min-w-[45%] bg-blue-50 rounded-2xl p-4">
-              <Feather name="folder" size={24} color="#3b82f6" />
-              <Text className="text-2xl font-bold text-gray-900 mt-3">
-                {allProjects.length}
-              </Text>
-              <Text className="text-sm text-gray-600 mt-1">Active Projects</Text>
-              <Text className="text-xs text-gray-500 mt-1">Total projects</Text>
-            </View>
-
-            {/* Study Circles */}
-            <View className="flex-1 min-w-[45%] bg-green-50 rounded-2xl p-4">
-              <Feather name="users" size={24} color="#10b981" />
-              <Text className="text-2xl font-bold text-gray-900 mt-3">
-                {firebaseData?.studyCircles || 3}
-              </Text>
-              <Text className="text-sm text-gray-600 mt-1">Study Circles</Text>
-              <Text className="text-xs text-gray-500 mt-1">Member of</Text>
-            </View>
-
-            {/* Attendance */}
-            <View className="flex-1 min-w-[45%] bg-purple-50 rounded-2xl p-4">
-              <Feather name="target" size={24} color="#8b5cf6" />
-              <Text className="text-2xl font-bold text-gray-900 mt-3">87%</Text>
-              <Text className="text-sm text-gray-600 mt-1">Attendance</Text>
-              <Text className="text-xs text-gray-500 mt-1">This month</Text>
-            </View>
-
-            {/* Upcoming Events */}
-            <View className="flex-1 min-w-[45%] bg-orange-50 rounded-2xl p-4">
-              <Feather name="calendar" size={24} color="#f97316" />
-              <Text className="text-2xl font-bold text-gray-900 mt-3">
-                {firebaseData?.upcomingEvents || 8}
-              </Text>
-              <Text className="text-sm text-gray-600 mt-1">Upcoming Events</Text>
-              <Text className="text-xs text-gray-500 mt-1">Next 7 days</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Quick Actions */}
-        <View className="px-6 py-4">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">
-            Quick Actions
-          </Text>
-          <View className="gap-3">
-            {/* Create Project */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate("CreateProject")}
-              className="flex-row items-center bg-white border border-gray-200 rounded-xl p-4"
-            >
-              <View className="w-10 h-10 bg-blue-100 rounded-lg items-center justify-center">
-                <Feather name="folder" size={20} color="#3b82f6" />
-              </View>
-              <Text className="text-base text-gray-900 ml-4 flex-1">
-                Create Project
-              </Text>
-              <Feather name="chevron-right" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-
-            {/* Join Study Circle */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate("StudyCircles")}
-              className="flex-row items-center bg-white border border-gray-200 rounded-xl p-4"
-            >
-              <View className="w-10 h-10 bg-green-100 rounded-lg items-center justify-center">
-                <Feather name="users" size={20} color="#10b981" />
-              </View>
-              <Text className="text-base text-gray-900 ml-4 flex-1">
-                Join Study Circle
-              </Text>
-              <Feather name="chevron-right" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-
-            {/* Community Feed - NEW */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Feed")}
-              className="flex-row items-center bg-white border border-gray-200 rounded-xl p-4"
-            >
-              <View className="w-10 h-10 bg-pink-100 rounded-lg items-center justify-center">
-                <Feather name="hash" size={20} color="#ec4899" />
-              </View>
-              <Text className="text-base text-gray-900 ml-4 flex-1">
-                Community Feed
-              </Text>
-              <Feather name="chevron-right" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-
-            {/* Mark Attendance */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Attendance")}
-              className="flex-row items-center bg-white border border-gray-200 rounded-xl p-4"
-            >
-              <View className="w-10 h-10 bg-purple-100 rounded-lg items-center justify-center">
-                <Feather name="check-circle" size={20} color="#8b5cf6" />
-              </View>
-              <Text className="text-base text-gray-900 ml-4 flex-1">
-                Mark Attendance
-              </Text>
-              <Feather name="chevron-right" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-
-            {/* Browse Events */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Events")}
-              className="flex-row items-center bg-white border border-gray-200 rounded-xl p-4"
-            >
-              <View className="w-10 h-10 bg-orange-100 rounded-lg items-center justify-center">
-                <Feather name="calendar" size={20} color="#f97316" />
-              </View>
-              <Text className="text-base text-gray-900 ml-4 flex-1">
-                Browse Events
-              </Text>
-              <Feather name="chevron-right" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-          </View>
-        </View>
+        {/* Quick Actions moved to floating bottom bar */}
 
         {/* Your Stats */}
         <View className="px-6 py-4">
@@ -389,7 +323,7 @@ const HomeDashboard = ({ navigation }) => {
           </View>
 
           {/* Weekly Study Goal */}
-          <View className="mb-4">
+          {/* <View className="mb-4">
             <View className="flex-row justify-between mb-2">
               <Text className="text-sm text-gray-600">Weekly Study Goal</Text>
               <Text className="text-sm font-semibold text-gray-900">12/15 hrs</Text>
@@ -397,7 +331,7 @@ const HomeDashboard = ({ navigation }) => {
             <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
               <View className="h-full bg-green-600 rounded-full" style={{ width: "80%" }} />
             </View>
-          </View>
+          </View> */}
 
           {/* Recent Achievement */}
           <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex-row items-center">
@@ -417,8 +351,11 @@ const HomeDashboard = ({ navigation }) => {
 
         {/* Suggested Connections */}
         <View className="px-6 py-4 pb-24">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">
+          <Text className="text-lg font-semibold text-gray-900">
             Suggested Connections
+          </Text>
+          <Text className="text-sm font-normal text-gray-400 mb-4">
+            View profile of like minded people.
           </Text>
           <View className="gap-3">
             {[
@@ -449,8 +386,111 @@ const HomeDashboard = ({ navigation }) => {
           </View>
         </View>
       </ScrollView>
+      {/* Floating Quick Actions Bar (full width) */}
+      <View style={styles.floatingBarContainer} pointerEvents="box-none">
+        <View
+          style={[
+            styles.floatingBar,
+            { paddingBottom: 16 },
+          ]}
+        >
+          <QuickActionButton
+            icon="folder"
+            label="Create"
+            bg="#1f6feb"
+            onPress={() => navigation.navigate("CreateProject")}
+          />
+          <QuickActionButton
+            icon="users"
+            label="Circle"
+            bg="#10b981"
+            onPress={() => navigation.navigate("StudyCircles")}
+          />
+          <QuickActionButton
+            icon="hash"
+            label="Feed"
+            bg="#ec4899"
+            onPress={() => navigation.navigate("Feed")}
+          />
+          {/* <QuickActionButton
+            icon="check-circle"
+            label="Attend"
+            bg="#7c3aed"
+            onPress={() => navigation.navigate("Attendance")}
+          /> */}
+          <QuickActionButton
+            icon="calendar"
+            label="Events"
+            bg="#f97316"
+            onPress={() => navigation.navigate("Events")}
+          />
+          <QuickActionButton
+            icon="calendar"
+            label="Community"
+            bg="#f97316"
+            onPress={() => navigation.navigate("Community")}
+          />
+        </View>
+      </View>
     </SafeAreaView>
   );
 };
 
 export default HomeDashboard;
+
+const { width } = Dimensions.get("window");
+
+const QuickActionButton = ({ icon, label, onPress, bg }) => (
+  <TouchableOpacity onPress={onPress} style={styles.actionWrap} activeOpacity={0.85}>
+    <View style={[styles.iconCircle, { backgroundColor: bg }]}> 
+      <Feather name={icon} size={20} color="#fff" />
+    </View>
+    <Text style={styles.actionLabel}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const styles = StyleSheet.create({
+  floatingBarContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+  },
+  floatingBar: {
+    width: "100%",
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingTop: 10,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#eef2f7",
+    // shadow
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  actionWrap: {
+    flex: 1,
+    alignItems: "center",
+  },
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionLabel: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#374151",
+    fontWeight: "600",
+  },
+});
