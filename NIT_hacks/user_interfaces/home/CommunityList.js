@@ -52,7 +52,7 @@ const CommunityList = ({ navigation }) => {
   const renderItem = ({ item }) => {
     const isMember = item.members?.includes(user.id);
     const memberCount = item.members?.length || 0;
-    
+
     return (
       <TouchableOpacity 
         onPress={() => navigation.navigate("CommunityFeed", { communityId: item.id, communityName: item.name })}

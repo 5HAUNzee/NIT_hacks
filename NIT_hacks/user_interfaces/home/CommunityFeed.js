@@ -14,6 +14,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -56,6 +57,7 @@ const CommunityFeed = ({ route, navigation }) => {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [communityData, setCommunityData] = useState(null);
   const [isMember, setIsMember] = useState(false);
+  const [communitySentimentSummary, setCommunitySentimentSummary] = useState("");
 
   useEffect(() => {
     loadUserData();
@@ -75,6 +77,7 @@ const CommunityFeed = ({ route, navigation }) => {
       setPosts(communityPosts);
       setLoading(false);
       setRefreshing(false);
+      analyzeCommunitySentiment(communityPosts);
     });
 
     return () => unsubscribe();
@@ -102,9 +105,7 @@ const CommunityFeed = ({ route, navigation }) => {
         if (communitySnap.exists()) {
           const data = communitySnap.data();
           setCommunityData(data);
-          // Check if user is a member
-          const userIsMember = data.members?.includes(user.id) || false;
-          setIsMember(userIsMember);
+          setIsMember(data.members?.includes(user.id) || false);
         }
       }
     } catch (error) {
@@ -137,21 +138,30 @@ const CommunityFeed = ({ route, navigation }) => {
     }
   };
 
+  const checkContentForModeration = async (text) => {
+    // Replace with actual Gemini or external moderation API
+    if (text.toLowerCase().includes("badword")) {
+      return { allowed: false, reason: "Inappropriate language detected." };
+    }
+    return { allowed: true };
+  };
+
+  const analyzeCommunitySentiment = async (communityPosts) => {
+    const combinedText = communityPosts.map((p) => p.content).join(" ");
+    // TODO: Replace with actual Gemini sentiment summary API call
+    setCommunitySentimentSummary(
+      "This community promotes positive and respectful interactions."
+    );
+  };
+
   const createPost = async () => {
-    // Check if user is a member
     if (!isMember) {
       Alert.alert(
         "Access Denied",
         "You must be a member of this community to create posts.",
         [
-          {
-            text: "Join Community",
-            onPress: () => navigation.goBack(),
-          },
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
+          { text: "Join Community", onPress: () => navigation.goBack() },
+          { text: "Cancel", style: "cancel" },
         ]
       );
       return;
@@ -164,13 +174,22 @@ const CommunityFeed = ({ route, navigation }) => {
 
     setSubmitting(true);
     try {
+      if (postContent.trim()) {
+        const modResult = await checkContentForModeration(postContent.trim());
+        if (!modResult.allowed) {
+          Alert.alert("Content blocked", modResult.reason || "Your post was blocked.");
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const postData = {
         content: postContent.trim(),
         imageUrl: postImageUrl || null,
         authorId: user.id,
         authorName: `${userData?.firstName || ""} ${userData?.lastName || ""}`.trim() || "Anonymous",
         authorProfilePic: userData?.profilePic || null,
-        communityId: communityId,
+        communityId,
         likes: [],
         comments: [],
         createdAt: Timestamp.now(),
@@ -221,6 +240,13 @@ const CommunityFeed = ({ route, navigation }) => {
 
     setSubmittingComment(true);
     try {
+      const modResult = await checkContentForModeration(commentText.trim());
+      if (!modResult.allowed) {
+        Alert.alert("Content blocked", modResult.reason || "Your comment was blocked.");
+        setSubmittingComment(false);
+        return;
+      }
+
       const comment = {
         text: commentText.trim(),
         authorId: user.id,
@@ -243,28 +269,31 @@ const CommunityFeed = ({ route, navigation }) => {
     }
   };
 
+  const shareOnWhatsApp = async (post) => {
+    const message = `Community "${communityName}" post:\n${post.content || ""}\n— ${post.authorName || "Unknown"}`;
+    const url = `whatsapp://send?text=${encodeURIComponent(message)}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) await Linking.openURL(url);
+    else Alert.alert("Error", "WhatsApp is not installed");
+  };
+
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return "";
-
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     const now = new Date();
     const diffInSeconds = Math.floor((now - date) / 1000);
-
     if (diffInSeconds < 60) return "Just now";
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-
     return date.toLocaleDateString();
   };
 
   const renderPost = ({ item: post }) => {
     const isLiked = post.likes?.includes(user.id);
     const isAuthor = post.authorId === user.id;
-
     return (
       <View style={styles.postCard}>
-        {/* Post Header */}
         <View style={styles.postHeader}>
           <View style={styles.authorInfo}>
             {post.authorProfilePic ? (
@@ -287,18 +316,10 @@ const CommunityFeed = ({ route, navigation }) => {
             </TouchableOpacity>
           )}
         </View>
-
-        {/* Content */}
-        {post.content && (
-          <Text style={styles.postContent}>{post.content}</Text>
-        )}
-
-        {/* Post Image */}
+        {post.content && <Text style={styles.postContent}>{post.content}</Text>}
         {post.imageUrl && (
           <Image source={{ uri: post.imageUrl }} style={styles.postImage} resizeMode="cover" />
         )}
-
-        {/* Engagement Stats */}
         {(post.likes?.length > 0 || post.comments?.length > 0) && (
           <View style={styles.statsRow}>
             {post.likes?.length > 0 && (
@@ -313,8 +334,6 @@ const CommunityFeed = ({ route, navigation }) => {
             )}
           </View>
         )}
-
-        {/* Post Actions */}
         <View style={styles.actionsRow}>
           <TouchableOpacity 
             onPress={() => toggleLike(post.id, post.likes || [])} 
@@ -327,11 +346,8 @@ const CommunityFeed = ({ route, navigation }) => {
               color={isLiked ? "#ef4444" : "#6b7280"} 
               fill={isLiked ? "#ef4444" : "transparent"}
             />
-            <Text style={[styles.actionText, isLiked && styles.actionTextActive]}>
-              Like
-            </Text>
+            <Text style={[styles.actionText, isLiked && styles.actionTextActive]}>Like</Text>
           </TouchableOpacity>
-          
           <TouchableOpacity 
             onPress={() => openCommentModal(post)} 
             style={styles.actionButton}
@@ -340,8 +356,8 @@ const CommunityFeed = ({ route, navigation }) => {
             <Feather name="message-circle" size={22} color="#6b7280" />
             <Text style={styles.actionText}>Comment</Text>
           </TouchableOpacity>
-          
           <TouchableOpacity 
+            onPress={() => shareOnWhatsApp(post)}
             style={styles.actionButton}
             activeOpacity={0.7}
           >
@@ -387,42 +403,19 @@ const CommunityFeed = ({ route, navigation }) => {
           <Text style={styles.headerTitle}>{communityName || "Community Feed"}</Text>
           <Text style={styles.headerSubtitle}>{posts.length} {posts.length === 1 ? "post" : "posts"}</Text>
         </View>
-        <TouchableOpacity style={styles.headerButton}>
-          <Feather name="more-vertical" size={24} color="#6b7280" />
+        <TouchableOpacity style={styles.headerButton} onPress={() => setShowCreatePost(true)}>
+          <Feather name="plus" size={24} color="#3b82f6" />
         </TouchableOpacity>
       </View>
 
-      {/* Quick Create Post Card */}
-      <TouchableOpacity
-        onPress={() => setShowCreatePost(true)}
-        style={styles.quickCreateCard}
-        activeOpacity={0.7}
-      >
-        <View style={styles.quickCreateContent}>
-          {userData?.profilePic ? (
-            <Image source={{ uri: userData.profilePic }} style={styles.quickCreateAvatar} />
-          ) : (
-            <View style={styles.quickCreateAvatarPlaceholder}>
-              <Text style={styles.avatarText}>
-                {userData?.firstName?.charAt(0)?.toUpperCase() || "U"}
-              </Text>
-            </View>
-          )}
-          <Text style={styles.quickCreatePlaceholder}>What's on your mind?</Text>
+      {/* Community Sentiment Summary */}
+      {communitySentimentSummary.length > 0 && (
+        <View style={styles.sentimentSummary}>
+          <Text style={styles.sentimentSummaryText}>{communitySentimentSummary}</Text>
         </View>
-        <View style={styles.quickCreateActions}>
-          <View style={styles.quickCreateAction}>
-            <Feather name="image" size={20} color="#10b981" />
-            <Text style={styles.quickCreateActionText}>Photo</Text>
-          </View>
-          {/* <View style={styles.quickCreateAction}>
-            <Feather name="video" size={20} color="#3b82f6" />
-            <Text style={styles.quickCreateActionText}>Video</Text>
-          </View> */}
-        </View>
-      </TouchableOpacity>
+      )}
 
-      {/* Posts */}
+      {/* Posts List */}
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3b82f6" />
@@ -446,14 +439,10 @@ const CommunityFeed = ({ route, navigation }) => {
       ) : (
         <FlatList
           data={posts}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           renderItem={renderPost}
           refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={() => setRefreshing(true)}
-              tintColor="#3b82f6"
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={() => setRefreshing(true)} tintColor="#3b82f6" />
           }
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
@@ -463,7 +452,6 @@ const CommunityFeed = ({ route, navigation }) => {
       {/* Create Post Modal */}
       <Modal visible={showCreatePost} animationType="slide" onRequestClose={() => setShowCreatePost(false)}>
         <SafeAreaView style={styles.modalContainer}>
-          {/* Modal Header */}
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowCreatePost(false)} style={styles.modalCloseButton}>
               <Feather name="x" size={24} color="#1f2937" />
@@ -474,7 +462,7 @@ const CommunityFeed = ({ route, navigation }) => {
               disabled={submitting || uploadingImage || (!postContent.trim() && !postImageUrl)}
               style={[
                 styles.modalPostButton,
-                (submitting || uploadingImage || (!postContent.trim() && !postImageUrl)) && styles.modalPostButtonDisabled
+                (submitting || uploadingImage || (!postContent.trim() && !postImageUrl)) && styles.modalPostButtonDisabled,
               ]}
             >
               {submitting ? (
@@ -484,24 +472,16 @@ const CommunityFeed = ({ route, navigation }) => {
               )}
             </TouchableOpacity>
           </View>
-
-          {/* Author Info */}
           <View style={styles.modalAuthorInfo}>
             {userData?.profilePic ? (
               <Image source={{ uri: userData.profilePic }} style={styles.modalAvatar} />
             ) : (
               <View style={styles.modalAvatarPlaceholder}>
-                <Text style={styles.avatarText}>
-                  {userData?.firstName?.charAt(0)?.toUpperCase() || "U"}
-                </Text>
+                <Text style={styles.avatarText}>{userData?.firstName?.charAt(0)?.toUpperCase() || "U"}</Text>
               </View>
             )}
-            <Text style={styles.modalAuthorName}>
-              {`${userData?.firstName || ""} ${userData?.lastName || ""}`.trim() || "You"}
-            </Text>
+            <Text style={styles.modalAuthorName}>{`${userData?.firstName || ""} ${userData?.lastName || ""}`.trim() || "You"}</Text>
           </View>
-
-          {/* Post Content Input */}
           <TextInput
             placeholder="What's on your mind?"
             placeholderTextColor="#9ca3af"
@@ -522,26 +502,15 @@ const CommunityFeed = ({ route, navigation }) => {
                   <Text style={styles.uploadingText}>Uploading...</Text>
                 </View>
               )}
-              <TouchableOpacity 
-                onPress={() => { setPostImage(null); setPostImageUrl(null); }} 
-                style={styles.removeImageButton}
-              >
+              <TouchableOpacity onPress={() => { setPostImage(null); setPostImageUrl(null); }} style={styles.removeImageButton}>
                 <Feather name="x" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
           )}
-
-          {/* Action Buttons */}
           <View style={styles.modalActions}>
-            <TouchableOpacity 
-              onPress={pickImage} 
-              style={styles.modalActionButton}
-              disabled={uploadingImage}
-            >
+            <TouchableOpacity onPress={pickImage} style={styles.modalActionButton} disabled={uploadingImage}>
               <Feather name="image" size={24} color="#10b981" />
-              <Text style={styles.modalActionText}>
-                {postImage ? "Change Photo" : "Add Photo"}
-              </Text>
+              <Text style={styles.modalActionText}>{postImage ? "Change Photo" : "Add Photo"}</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -550,18 +519,13 @@ const CommunityFeed = ({ route, navigation }) => {
       {/* Comment Modal */}
       <Modal visible={commentModalVisible} animationType="slide" onRequestClose={() => setCommentModalVisible(false)}>
         <SafeAreaView style={styles.modalContainer}>
-          {/* Comments Header */}
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setCommentModalVisible(false)} style={styles.modalCloseButton}>
               <Feather name="arrow-left" size={24} color="#1f2937" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>
-              Comments ({selectedPost?.comments?.length || 0})
-            </Text>
+            <Text style={styles.modalTitle}>Comments ({selectedPost?.comments?.length || 0})</Text>
             <View style={{ width: 40 }} />
           </View>
-
-          {/* Comments List */}
           <ScrollView style={styles.commentsContainer}>
             {selectedPost?.comments && selectedPost.comments.length > 0 ? (
               selectedPost.comments.map((comment, idx) => (
@@ -570,9 +534,7 @@ const CommunityFeed = ({ route, navigation }) => {
                     <Image source={{ uri: comment.authorPic }} style={styles.commentAvatar} />
                   ) : (
                     <View style={styles.commentAvatarPlaceholder}>
-                      <Text style={styles.commentAvatarText}>
-                        {comment.authorName?.charAt(0)?.toUpperCase() || "U"}
-                      </Text>
+                      <Text style={styles.commentAvatarText}>{comment.authorName?.charAt(0)?.toUpperCase() || "U"}</Text>
                     </View>
                   )}
                   <View style={styles.commentContent}>
@@ -580,9 +542,7 @@ const CommunityFeed = ({ route, navigation }) => {
                       <Text style={styles.commentAuthor}>{comment.authorName}</Text>
                       <Text style={styles.commentText}>{comment.text}</Text>
                     </View>
-                    <Text style={styles.commentTimestamp}>
-                      {formatTimestamp(comment.createdAt)}
-                    </Text>
+                    <Text style={styles.commentTimestamp}>{formatTimestamp(comment.createdAt)}</Text>
                   </View>
                 </View>
               ))
@@ -594,20 +554,13 @@ const CommunityFeed = ({ route, navigation }) => {
               </View>
             )}
           </ScrollView>
-
-          {/* Add Comment Input */}
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-          >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}>
             <View style={styles.commentInputContainer}>
               {userData?.profilePic ? (
                 <Image source={{ uri: userData.profilePic }} style={styles.commentInputAvatar} />
               ) : (
                 <View style={styles.commentInputAvatarPlaceholder}>
-                  <Text style={styles.avatarText}>
-                    {userData?.firstName?.charAt(0)?.toUpperCase() || "U"}
-                  </Text>
+                  <Text style={styles.avatarText}>{userData?.firstName?.charAt(0)?.toUpperCase() || "U"}</Text>
                 </View>
               )}
               <TextInput
@@ -622,10 +575,7 @@ const CommunityFeed = ({ route, navigation }) => {
               <TouchableOpacity
                 onPress={addComment}
                 disabled={submittingComment || !commentText.trim()}
-                style={[
-                  styles.commentSendButton,
-                  (!commentText.trim() || submittingComment) && styles.commentSendButtonDisabled
-                ]}
+                style={[styles.commentSendButton, (!commentText.trim() || submittingComment) && styles.commentSendButtonDisabled]}
               >
                 {submittingComment ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -642,507 +592,80 @@ const CommunityFeed = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f9fafb",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerCenter: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#1f2937",
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: "#6b7280",
-    marginTop: 2,
-  },
-  headerButton: {
-    padding: 4,
-  },
-  quickCreateCard: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  quickCreateContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  quickCreateAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  quickCreateAvatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#3b82f6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  quickCreatePlaceholder: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 15,
-    color: "#9ca3af",
-  },
-  quickCreateActions: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#f3f4f6",
-  },
-  quickCreateAction: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  quickCreateActionText: {
-    marginLeft: 6,
-    fontSize: 14,
-    color: "#6b7280",
-    fontWeight: "500",
-  },
-  notMemberCard: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    borderRadius: 12,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    alignItems: "center",
-  },
-  notMemberTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1f2937",
-    marginTop: 12,
-  },
-  notMemberSubtitle: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginTop: 8,
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  joinButton: {
-    backgroundColor: "#3b82f6",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-    marginTop: 16,
-  },
-  joinButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#6b7280",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#1f2937",
-    marginTop: 16,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginTop: 8,
-    textAlign: "center",
-  },
-  emptyButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#3b82f6",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-    marginTop: 24,
-  },
-  emptyButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  listContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 100,
-  },
-  postCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  postHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-  },
-  authorInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#3b82f6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 18,
-  },
-  authorDetails: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  authorName: {
-    fontWeight: "600",
-    fontSize: 16,
-    color: "#1f2937",
-  },
-  timestamp: {
-    color: "#6b7280",
-    fontSize: 13,
-    marginTop: 2,
-  },
-  deleteButton: {
-    padding: 8,
-  },
-  postContent: {
-    paddingHorizontal: 16,
-    fontSize: 15,
-    color: "#1f2937",
-    lineHeight: 22,
-    marginBottom: 12,
-  },
-  postImage: {
-    width: "100%",
-    height: 300,
-    backgroundColor: "#f3f4f6",
-  },
-  statsRow: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    gap: 16,
-  },
-  statsText: {
-    fontSize: 13,
-    color: "#6b7280",
-  },
-  actionsRow: {
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: "#f3f4f6",
-    paddingVertical: 4,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-  },
-  actionText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#6b7280",
-    fontWeight: "500",
-  },
-  actionTextActive: {
-    color: "#ef4444",
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  modalCloseButton: {
-    padding: 4,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1f2937",
-  },
-  modalPostButton: {
-    backgroundColor: "#3b82f6",
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  modalPostButtonDisabled: {
-    backgroundColor: "#d1d5db",
-  },
-  modalPostButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 15,
-  },
-  modalAuthorInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
-  },
-  modalAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  modalAvatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#3b82f6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalAuthorName: {
-    marginLeft: 12,
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1f2937",
-  },
-  modalTextInput: {
-    flex: 1,
-    fontSize: 16,
-    color: "#1f2937",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    textAlignVertical: "top",
-  },
-  imagePreviewContainer: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  imagePreview: {
-    width: "100%",
-    height: 250,
-    backgroundColor: "#f3f4f6",
-  },
-  uploadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  uploadingText: {
-    color: "#fff",
-    marginTop: 12,
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  removeImageButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalActions: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-  },
-  modalActionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  modalActionText: {
-    marginLeft: 12,
-    fontSize: 16,
-    color: "#1f2937",
-    fontWeight: "500",
-  },
-  commentsContainer: {
-    flex: 1,
-    backgroundColor: "#f9fafb",
-  },
-  commentItem: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-  },
-  commentAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  commentAvatarPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#3b82f6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  commentAvatarText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  commentContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  commentBubble: {
-    backgroundColor: "#f3f4f6",
-    borderRadius: 16,
-    padding: 12,
-  },
-  commentAuthor: {
-    fontWeight: "600",
-    fontSize: 14,
-    color: "#1f2937",
-    marginBottom: 4,
-  },
-  commentText: {
-    fontSize: 14,
-    color: "#374151",
-    lineHeight: 20,
-  },
-  commentTimestamp: {
-    fontSize: 12,
-    color: "#9ca3af",
-    marginTop: 4,
-    marginLeft: 12,
-  },
-  noCommentsContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 64,
-  },
-  noCommentsText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1f2937",
-    marginTop: 16,
-  },
-  noCommentsSubtext: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginTop: 8,
-  },
-  commentInputContainer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-  },
-  commentInputAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  commentInputAvatarPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#3b82f6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  commentInput: {
-    flex: 1,
-    marginLeft: 12,
-    marginRight: 12,
-    backgroundColor: "#f3f4f6",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: "#1f2937",
-    maxHeight: 100,
-  },
-  commentSendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#3b82f6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  commentSendButtonDisabled: {
-    backgroundColor: "#d1d5db",
-  },
+  container: { flex: 1, backgroundColor: "#f9fafb" },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
+  backButton: { padding: 4 },
+  headerCenter: { flex: 1, marginLeft: 12 },
+  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#1f2937" },
+  headerSubtitle: { fontSize: 13, color: "#6b7280", marginTop: 2 },
+  headerButton: { padding: 4 },
+  sentimentSummary: { backgroundColor: "#e0f2fe", padding: 12, marginHorizontal: 16, marginVertical: 8, borderRadius: 8 },
+  sentimentSummaryText: { color: "#0369a1", fontWeight: "600", fontSize: 14, textAlign: "center" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { marginTop: 12, fontSize: 16, color: "#6b7280" },
+  emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 },
+  emptyTitle: { fontSize: 20, fontWeight: "bold", color: "#1f2937", marginTop: 16 },
+  emptySubtitle: { fontSize: 14, color: "#6b7280", marginTop: 8, textAlign: "center" },
+  emptyButton: { flexDirection: "row", alignItems: "center", backgroundColor: "#3b82f6", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24, marginTop: 24 },
+  emptyButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", marginLeft: 8 },
+  listContainer: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 100 },
+  postCard: { backgroundColor: "#fff", borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: "#e5e7eb" },
+  postHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16 },
+  authorInfo: { flexDirection: "row", alignItems: "center", flex: 1 },
+  avatar: { width: 44, height: 44, borderRadius: 22 },
+  avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#3b82f6", justifyContent: "center", alignItems: "center" },
+  avatarText: { color: "#fff", fontWeight: "bold", fontSize: 18 },
+  authorDetails: { marginLeft: 12, flex: 1 },
+  authorName: { fontWeight: "600", fontSize: 16, color: "#1f2937" },
+  timestamp: { color: "#6b7280", fontSize: 13, marginTop: 2 },
+  deleteButton: { padding: 8 },
+  postContent: { paddingHorizontal: 16, fontSize: 15, color: "#1f2937", lineHeight: 22, marginBottom: 12 },
+  postImage: { width: "100%", height: 300, backgroundColor: "#f3f4f6" },
+  statsRow: { flexDirection: "row", paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, gap: 16 },
+  statsText: { fontSize: 13, color: "#6b7280" },
+  actionsRow: { flexDirection: "row", borderTopWidth: 1, borderTopColor: "#f3f4f6", paddingVertical: 4 },
+  actionButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 12 },
+  actionText: { marginLeft: 8, fontSize: 14, color: "#6b7280", fontWeight: "500" },
+  actionTextActive: { color: "#ef4444" },
+  modalContainer: { flex: 1, backgroundColor: "#fff" },
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
+  modalCloseButton: { padding: 4 },
+  modalTitle: { fontSize: 18, fontWeight: "bold", color: "#1f2937" },
+  modalPostButton: { backgroundColor: "#3b82f6", paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20 },
+  modalPostButtonDisabled: { backgroundColor: "#d1d5db" },
+  modalPostButtonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
+  modalAuthorInfo: { flexDirection: "row", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
+  modalAvatar: { width: 40, height: 40, borderRadius: 20 },
+  modalAvatarPlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#3b82f6", justifyContent: "center", alignItems: "center" },
+  modalAuthorName: { marginLeft: 12, fontSize: 16, fontWeight: "600", color: "#1f2937" },
+  modalTextInput: { flex: 1, fontSize: 16, color: "#1f2937", paddingHorizontal: 16, paddingTop: 16, textAlignVertical: "top" },
+  imagePreviewContainer: { marginHorizontal: 16, marginBottom: 16, borderRadius: 12, overflow: "hidden" },
+  imagePreview: { width: "100%", height: 250, backgroundColor: "#f3f4f6" },
+  uploadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" },
+  uploadingText: { color: "#fff", marginTop: 12, fontSize: 16, fontWeight: "500" },
+  removeImageButton: { position: "absolute", top: 12, right: 12, backgroundColor: "rgba(0,0,0,0.6)", width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center" },
+  modalActions: { padding: 16, borderTopWidth: 1, borderTopColor: "#e5e7eb" },
+  modalActionButton: { flexDirection: "row", alignItems: "center", paddingVertical: 12 },
+  modalActionText: { marginLeft: 12, fontSize: 16, color: "#1f2937", fontWeight: "500" },
+  commentsContainer: { flex: 1, backgroundColor: "#f9fafb" },
+  commentItem: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#fff" },
+  commentAvatar: { width: 36, height: 36, borderRadius: 18 },
+  commentAvatarPlaceholder: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#3b82f6", justifyContent: "center", alignItems: "center" },
+  commentAvatarText: { color: "#fff", fontWeight: "bold", fontSize: 14 },
+  commentContent: { flex: 1, marginLeft: 12 },
+  commentBubble: { backgroundColor: "#f3f4f6", borderRadius: 16, padding: 12 },
+  commentAuthor: { fontWeight: "600", fontSize: 14, color: "#1f2937", marginBottom: 4 },
+  commentText: { fontSize: 14, color: "#374151", lineHeight: 20 },
+  commentTimestamp: { fontSize: 12, color: "#9ca3af", marginTop: 4, marginLeft: 12 },
+  noCommentsContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 64 },
+  noCommentsText: { fontSize: 18, fontWeight: "600", color: "#1f2937", marginTop: 16 },
+  noCommentsSubtext: { fontSize: 14, color: "#6b7280", marginTop: 8 },
+  commentInputContainer: { flexDirection: "row", alignItems: "flex-end", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#e5e7eb" },
+  commentInputAvatar: { width: 36, height: 36, borderRadius: 18 },
+  commentInputAvatarPlaceholder: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#3b82f6", justifyContent: "center", alignItems: "center" },
+  commentInput: { flex: 1, marginLeft: 12, marginRight: 12, backgroundColor: "#f3f4f6", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, color: "#1f2937", maxHeight: 100 },
+  commentSendButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#3b82f6", justifyContent: "center", alignItems: "center" },
+  commentSendButtonDisabled: { backgroundColor: "#d1d5db" },
 });
 
 export default CommunityFeed;
