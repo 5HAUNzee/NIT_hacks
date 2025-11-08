@@ -10,6 +10,8 @@ import {
   Platform,
   ActivityIndicator,
   StyleSheet,
+  Share,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -125,6 +127,33 @@ const BrowseEvents = ({ navigation }) => {
       latitudeDelta: 0.01,
       longitudeDelta: 0.01,
     });
+  };
+
+  const handleShareEvent = async (event) => {
+    try {
+      const message = `🎉 Check out this event!\n\n📌 ${event.title}\n📅 ${event.date} at ${event.time}\n📍 ${event.location}\n💰 ${event.registrationFee}\n\nOrganized by ${event.organizer}\n\n${event.description}`;
+      
+      const result = await Share.share({
+        message: message,
+        title: event.title,
+      });
+
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          // Shared with activity type of result.activityType
+          console.log('Shared with', result.activityType);
+        } else {
+          // Shared
+          console.log('Event shared successfully');
+        }
+      } else if (result.action === Share.dismissedAction) {
+        // Dismissed
+        console.log('Share dismissed');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Unable to share event');
+      console.error('Error sharing event:', error);
+    }
   };
 
   const getEventTypeColor = (type) => {
@@ -642,12 +671,15 @@ const BrowseEvents = ({ navigation }) => {
                           Register Now
                         </Text>
                       </TouchableOpacity>
-                      <TouchableOpacity className="bg-gray-100 px-6 py-4 rounded-xl items-center justify-center">
+                      <TouchableOpacity 
+                        className="bg-gray-100 px-6 py-4 rounded-xl items-center justify-center"
+                        onPress={() => handleShareEvent(selectedEvent)}
+                      >
                         <Feather name="share-2" size={20} color="#1f2937" />
                       </TouchableOpacity>
-                      <TouchableOpacity className="bg-gray-100 px-6 py-4 rounded-xl items-center justify-center">
+                      {/* <TouchableOpacity className="bg-gray-100 px-6 py-4 rounded-xl items-center justify-center">
                         <Feather name="bookmark" size={20} color="#1f2937" />
-                      </TouchableOpacity>
+                      </TouchableOpacity> */}
                     </View>
                   </View>
                 </>
