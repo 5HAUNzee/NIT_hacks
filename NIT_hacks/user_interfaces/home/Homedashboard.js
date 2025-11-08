@@ -472,7 +472,7 @@ const HomeDashboard = ({ navigation }) => {
             icon="calendar"
             label="Community"
             bg="#f97316"
-            onPress={() => navigation.navigate("Community")}
+            onPress={() => navigation.navigate("CommunityList")}
           />
         </View>
       </View>
