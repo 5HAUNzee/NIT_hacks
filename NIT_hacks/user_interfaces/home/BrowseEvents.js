@@ -10,6 +10,8 @@ import {
   Platform,
   ActivityIndicator,
   StyleSheet,
+  Share,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -127,6 +129,33 @@ const BrowseEvents = ({ navigation }) => {
     });
   };
 
+  const handleShareEvent = async (event) => {
+    try {
+      const message = `🎉 Check out this event!\n\n📌 ${event.title}\n📅 ${event.date} at ${event.time}\n📍 ${event.location}\n💰 ${event.registrationFee}\n\nOrganized by ${event.organizer}\n\n${event.description}`;
+      
+      const result = await Share.share({
+        message: message,
+        title: event.title,
+      });
+
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          // Shared with activity type of result.activityType
+          console.log('Shared with', result.activityType);
+        } else {
+          // Shared
+          console.log('Event shared successfully');
+        }
+      } else if (result.action === Share.dismissedAction) {
+        // Dismissed
+        console.log('Share dismissed');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Unable to share event');
+      console.error('Error sharing event:', error);
+    }
+  };
+
   const getEventTypeColor = (type) => {
     switch (type) {
       case "Hackathon":
@@ -148,130 +177,85 @@ const BrowseEvents = ({ navigation }) => {
     return (
       <TouchableOpacity
         onPress={() => handleEventPress(event)}
-        className="bg-white rounded-2xl mb-4 overflow-hidden border border-gray-100"
-        style={{
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 8,
-          elevation: 3,
-        }}
+        style={styles.eventCard}
+        activeOpacity={0.7}
       >
-        {/* Event Header with gradient */}
-        <View className={`${colors.bg} px-4 py-3 flex-row justify-between items-center`}>
-          <View className="flex-row items-center">
-            <View className={`${colors.bg} p-2 rounded-lg`}>
-              <Feather
-                name={event.type === "Hackathon" ? "code" : event.type === "Workshop" ? "book-open" : event.type === "Conference" ? "users" : "award"}
-                size={20}
-                color={colors.dot}
-              />
-            </View>
-            <View className="ml-3">
-              <Text className={`text-xs font-semibold ${colors.text}`}>
-                {event.type}
-              </Text>
-              <Text className="text-xs text-gray-500 mt-0.5">{event.organizer}</Text>
-            </View>
+        {/* Event Header */}
+        <View style={styles.eventHeader}>
+          <View style={styles.eventTypeContainer}>
+            <Feather
+              name={event.type === "Hackathon" ? "code" : event.type === "Workshop" ? "book-open" : event.type === "Conference" ? "users" : "award"}
+              size={18}
+              color={colors.dot}
+            />
+            <Text style={[styles.eventTypeText, { color: colors.dot }]}>
+              {event.type}
+            </Text>
           </View>
           <View
-            className={`px-3 py-1 rounded-full ${
-              event.status === "Open" ? "bg-green-500" : "bg-gray-400"
-            }`}
+            style={[
+              styles.statusBadge,
+              { backgroundColor: event.status === "Open" ? "#10b981" : "#6b7280" }
+            ]}
           >
-            <Text className="text-xs text-white font-semibold">
-              {event.status}
-            </Text>
+            <Text style={styles.statusText}>{event.status}</Text>
           </View>
         </View>
 
-        {/* Event Details */}
-        <View className="px-4 py-4">
-          <Text className="text-lg font-bold text-gray-900 mb-2">
+        {/* Event Title & Description */}
+        <View style={styles.eventBody}>
+          <Text style={styles.eventTitle} numberOfLines={2}>
             {event.title}
           </Text>
-          <Text className="text-sm text-gray-600 mb-3" numberOfLines={2}>
+          <Text style={styles.eventDescription} numberOfLines={2}>
             {event.description}
           </Text>
+          <Text style={styles.eventOrganizer} numberOfLines={1}>
+            by {event.organizer}
+          </Text>
 
-          {/* Tags */}
-          <View className="flex-row flex-wrap gap-2 mb-3">
-            {event.tags.map((tag, index) => (
-              <View key={index} className="bg-gray-100 px-3 py-1 rounded-full">
-                <Text className="text-xs text-gray-700">{tag}</Text>
-              </View>
-            ))}
+          {/* Event Info */}
+          <View style={styles.eventInfoContainer}>
+            <View style={styles.infoRow}>
+              <Feather name="calendar" size={14} color="#6b7280" />
+              <Text style={styles.infoText}>{event.date}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Feather name="clock" size={14} color="#6b7280" />
+              <Text style={styles.infoText}>{event.time}</Text>
+            </View>
           </View>
 
-          {/* Event Info Grid */}
-          <View className="border-t border-gray-100 pt-3">
-            <View className="flex-row justify-between mb-2">
-              <View className="flex-row items-center">
-                <Feather name="calendar" size={14} color="#6b7280" />
-                <Text className="text-xs text-gray-600 ml-2">{event.date}</Text>
-              </View>
-              <View className="flex-row items-center">
-                <Feather name="clock" size={14} color="#6b7280" />
-                <Text className="text-xs text-gray-600 ml-2">{event.time}</Text>
-              </View>
-            </View>
-            <View className="flex-row justify-between">
-              <View className="flex-row items-center flex-1">
-                <Feather name="map-pin" size={14} color="#6b7280" />
-                <Text className="text-xs text-gray-600 ml-2 flex-1" numberOfLines={1}>
-                  {event.location}
-                </Text>
-              </View>
-              <View className="flex-row items-center ml-4">
-                <Feather name="users" size={14} color="#6b7280" />
-                <Text className="text-xs text-gray-600 ml-2">
-                  {event.participants}
-                </Text>
-              </View>
-            </View>
-            
-            {/* Mini Map Preview */}
-            {event.latitude && event.longitude && (
-              <View className="mt-3" style={{ height: 120, borderRadius: 12, overflow: 'hidden' }}>
-                <MapView
-                  provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-                  style={{ flex: 1 }}
-                  initialRegion={{
-                    latitude: event.latitude,
-                    longitude: event.longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                  pitchEnabled={false}
-                  rotateEnabled={false}
-                  pointerEvents="none"
-                >
-                  <Marker
-                    coordinate={{
-                      latitude: event.latitude,
-                      longitude: event.longitude,
-                    }}
-                    pinColor={colors.dot}
-                  />
-                </MapView>
-              </View>
-            )}
-          </View>
-
-          {/* Registration Fee */}
-          <View className="flex-row justify-between items-center mt-3 pt-3 border-t border-gray-100">
-            <View>
-              <Text className="text-xs text-gray-500">Registration Fee</Text>
-              <Text className="text-base font-bold text-gray-900 mt-0.5">
-                {event.registrationFee}
+          <View style={styles.eventInfoContainer}>
+            <View style={[styles.infoRow, { flex: 1 }]}>
+              <Feather name="map-pin" size={14} color="#6b7280" />
+              <Text style={styles.infoText} numberOfLines={1}>
+                {event.location}
               </Text>
             </View>
-            <TouchableOpacity className="bg-blue-600 px-6 py-2.5 rounded-xl">
-              <Text className="text-white font-semibold text-sm">Register Now</Text>
-            </TouchableOpacity>
+            <View style={styles.infoRow}>
+              <Feather name="users" size={14} color="#6b7280" />
+              <Text style={styles.infoText}>{event.participants}</Text>
+            </View>
           </View>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.eventFooter}>
+          <View>
+            <Text style={styles.feeLabel}>Fee</Text>
+            <Text style={styles.feeAmount}>{event.registrationFee}</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.registerButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              navigation.navigate("EventRegistration", { event });
+            }}
+          >
+            <Text style={styles.registerButtonText}>Register</Text>
+            <Feather name="arrow-right" size={16} color="#fff" />
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -287,6 +271,9 @@ const BrowseEvents = ({ navigation }) => {
           </TouchableOpacity>
           <Text className="text-xl font-bold text-gray-900">Browse Events</Text>
           <View className="flex-row gap-3">
+            <TouchableOpacity onPress={() => navigation.navigate("MyEvents")}>
+              <Feather name="bookmark" size={24} color="#3b82f6" />
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate("AddEvent")}>
               <Feather name="plus-circle" size={24} color="#3b82f6" />
             </TouchableOpacity>
@@ -321,38 +308,45 @@ const BrowseEvents = ({ navigation }) => {
       </View>
 
       {/* Category Filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="bg-white border-b border-gray-100 px-6 py-4"
-      >
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category.name}
-            onPress={() => setSelectedCategory(category.name)}
-            className={`mr-3 px-4 py-2 rounded-xl flex-row items-center ${
-              selectedCategory === category.name
-                ? "bg-blue-600"
-                : "bg-gray-100"
-            }`}
-          >
-            <Feather
-              name={category.icon}
-              size={16}
-              color={selectedCategory === category.name ? "#ffffff" : "#6b7280"}
-            />
-            <Text
-              className={`ml-2 font-medium ${
-                selectedCategory === category.name
-                  ? "text-white"
-                  : "text-gray-700"
-              }`}
-            >
-              {category.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View className="bg-white border-b border-gray-100">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
+        >
+          {categories.map((category) => {
+            const isActive = selectedCategory === category.name;
+
+            return (
+              <TouchableOpacity
+                key={category.name}
+                onPress={() => setSelectedCategory(category.name)}
+                style={[
+                  styles.categoryChip,
+                  isActive ? styles.categoryChipActive : styles.categoryChipInactive
+                ]}
+                activeOpacity={0.7}
+              >
+                <Feather
+                  name={category.icon}
+                  size={16}
+                  color={isActive ? "#ffffff" : "#6b7280"}
+                />
+                <Text
+                  style={[
+                    styles.categoryText,
+                    isActive ? styles.categoryTextActive : styles.categoryTextInactive
+                  ]}
+                >
+                  {category.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+
 
       {/* View Mode Toggle */}
       {viewMode === "list" ? (
@@ -406,10 +400,10 @@ const BrowseEvents = ({ navigation }) => {
             provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
             style={styles.map}
             initialRegion={{
-              latitude: 22.2555,
-              longitude: 84.9030,
-              latitudeDelta: 0.02,
-              longitudeDelta: 0.02,
+                latitude: 15.2993,
+                longitude: 74.1240,
+                latitudeDelta: 0.02,
+                longitudeDelta: 0.02,
             }}
             showsUserLocation={true}
             showsMyLocationButton={true}
@@ -666,17 +660,26 @@ const BrowseEvents = ({ navigation }) => {
 
                     {/* Action Buttons */}
                     <View className="flex-row gap-3 mb-6">
-                      <TouchableOpacity className="flex-1 bg-blue-600 py-4 rounded-xl items-center">
+                      <TouchableOpacity 
+                        className="flex-1 bg-blue-600 py-4 rounded-xl items-center"
+                        onPress={() => {
+                          setShowEventModal(false);
+                          navigation.navigate("EventRegistration", { event: selectedEvent });
+                        }}
+                      >
                         <Text className="text-white font-bold text-base">
                           Register Now
                         </Text>
                       </TouchableOpacity>
-                      <TouchableOpacity className="bg-gray-100 px-6 py-4 rounded-xl items-center justify-center">
+                      <TouchableOpacity 
+                        className="bg-gray-100 px-6 py-4 rounded-xl items-center justify-center"
+                        onPress={() => handleShareEvent(selectedEvent)}
+                      >
                         <Feather name="share-2" size={20} color="#1f2937" />
                       </TouchableOpacity>
-                      <TouchableOpacity className="bg-gray-100 px-6 py-4 rounded-xl items-center justify-center">
+                      {/* <TouchableOpacity className="bg-gray-100 px-6 py-4 rounded-xl items-center justify-center">
                         <Feather name="bookmark" size={20} color="#1f2937" />
-                      </TouchableOpacity>
+                      </TouchableOpacity> */}
                     </View>
                   </View>
                 </>
@@ -695,6 +698,141 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: '#3b82f6',
+  },
+  categoryChipInactive: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  categoryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  categoryTextActive: {
+    color: '#ffffff',
+  },
+  categoryTextInactive: {
+    color: '#6b7280',
+  },
+  eventCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  eventHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  eventTypeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventTypeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  eventBody: {
+    padding: 16,
+  },
+  eventTitle: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 6,
+  },
+  eventDescription: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  eventOrganizer: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginBottom: 12,
+  },
+  eventInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginLeft: 6,
+  },
+  eventFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  feeLabel: {
+    fontSize: 11,
+    color: '#9ca3af',
+    marginBottom: 2,
+  },
+  feeAmount: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  registerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  registerButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 6,
+  },
 });
 
 export default BrowseEvents;
+
