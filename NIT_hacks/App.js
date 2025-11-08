@@ -29,6 +29,8 @@ import CreateCommunity from "./user_interfaces/home/CreateCommunity";
 import CommunityList from "./user_interfaces/home/CommunityList";
 import AddEvent from "./user_interfaces/home/AddEvent";
 import BrowseEvents from "./user_interfaces/home/BrowseEvents";
+import EventRegistration from "./user_interfaces/home/EventRegistration";
+import MyEvents from "./user_interfaces/home/MyEvents";
 
 
 WebBrowser.maybeCompleteAuthSession();
@@ -123,6 +125,8 @@ function RootNavigator() {
         <Stack.Screen name="CommunityList" component={CommunityList} />
         <Stack.Screen name="AddEvent" component={AddEvent} />
         <Stack.Screen name="BrowseEvents" component={BrowseEvents} />
+        <Stack.Screen name="EventRegistration" component={EventRegistration} />
+        <Stack.Screen name="MyEvents" component={MyEvents} />
       </Stack.Navigator>
     );
   }

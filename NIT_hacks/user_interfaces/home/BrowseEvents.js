@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,15 +7,17 @@ import {
   TextInput,
   Dimensions,
   Modal,
+  Platform,
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { db } from "../../firebase.config";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 
-const { height } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 const BrowseEvents = ({ navigation }) => {
   const [eventsData, setEventsData] = useState([]);
@@ -24,26 +26,69 @@ const BrowseEvents = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEventModal, setShowEventModal] = useState(false);
+  const [viewMode, setViewMode] = useState("list"); // 'list' or 'map'
+  const mapRef = useRef(null);
 
+  // Fetch events from Firebase
   useEffect(() => {
-    const eventsRef = collection(db, "events");
-    const q = query(eventsRef, orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(
-      q,
-      (querySnapshot) => {
-        const events = [];
-        querySnapshot.forEach((doc) => {
-          events.push({ id: doc.id, ...doc.data() });
-        });
-        setEventsData(events);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching events:", error);
+    const fetchEvents = async () => {
+      try {
+        const eventsRef = collection(db, "events");
+        const q = query(eventsRef, orderBy("createdAt", "desc"));
+
+        const unsubscribe = onSnapshot(
+          q,
+          (querySnapshot) => {
+            const events = [];
+            querySnapshot.forEach((doc) => {
+              events.push({
+                id: doc.id,
+                ...doc.data(),
+              });
+            });
+            setEventsData(events);
+            setLoading(false);
+          },
+          (error) => {
+            console.error("Error fetching events:", error);
+            // If orderBy fails due to missing index, fetch without ordering
+            if (error.code === "failed-precondition") {
+              console.log("Fetching without ordering...");
+              const simpleQuery = collection(db, "events");
+              const unsubscribeSimple = onSnapshot(
+                simpleQuery,
+                (querySnapshot) => {
+                  const events = [];
+                  querySnapshot.forEach((doc) => {
+                    events.push({
+                      id: doc.id,
+                      ...doc.data(),
+                    });
+                  });
+                  // Sort by createdAt client-side
+                  events.sort((a, b) => {
+                    const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                    const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                    return dateB - dateA;
+                  });
+                  setEventsData(events);
+                  setLoading(false);
+                }
+              );
+              return unsubscribeSimple;
+            }
+            setLoading(false);
+          }
+        );
+
+        return () => unsubscribe();
+      } catch (error) {
+        console.error("Error setting up events listener:", error);
         setLoading(false);
       }
-    );
-    return () => unsubscribe();
+    };
+
+    fetchEvents();
   }, []);
 
   const categories = [
@@ -54,6 +99,7 @@ const BrowseEvents = ({ navigation }) => {
     { name: "Competition", icon: "award" },
   ];
 
+  // Filter events based on search and category
   const filteredEvents = eventsData.filter((event) => {
     const matchesSearch =
       event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -71,235 +117,690 @@ const BrowseEvents = ({ navigation }) => {
     setShowEventModal(true);
   };
 
+  const handleMapMarkerPress = (event) => {
+    setSelectedEvent(event);
+    mapRef.current?.animateToRegion({
+      latitude: event.latitude,
+      longitude: event.longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    });
+  };
+
   const getEventTypeColor = (type) => {
     switch (type) {
       case "Hackathon":
-        return { bg: "#dbeafe", text: "#2563eb" };
+        return { bg: "bg-blue-100", text: "text-blue-700", dot: "#3b82f6" };
       case "Workshop":
-        return { bg: "#dcfce7", text: "#15803d" };
+        return { bg: "bg-green-100", text: "text-green-700", dot: "#10b981" };
       case "Conference":
-        return { bg: "#ede9fe", text: "#7c3aed" };
+        return { bg: "bg-purple-100", text: "text-purple-700", dot: "#8b5cf6" };
       case "Competition":
-        return { bg: "#ffedd5", text: "#c2410c" };
+        return { bg: "bg-orange-100", text: "text-orange-700", dot: "#f97316" };
       default:
-        return { bg: "#f3f4f6", text: "#374151" };
+        return { bg: "bg-gray-100", text: "text-gray-700", dot: "#6b7280" };
     }
   };
 
   const EventCard = ({ event }) => {
     const colors = getEventTypeColor(event.type);
+    
     return (
       <TouchableOpacity
         onPress={() => handleEventPress(event)}
-        style={{
-          backgroundColor: "white",
-          borderRadius: 12,
-          marginBottom: 16,
-          borderColor: "#e5e7eb",
-          borderWidth: 1,
-          padding: 16,
-          shadowColor: "#000",
-          shadowOpacity: 0.05,
-          shadowRadius: 8,
-          elevation: 3,
-        }}
+        style={styles.eventCard}
+        activeOpacity={0.7}
       >
-        <View
-          style={{
-            backgroundColor: colors.bg,
-            padding: 12,
-            borderRadius: 12,
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <Text style={{ color: colors.text, fontWeight: "600" }}>{event.type}</Text>
-          <Text
-            style={{
-              backgroundColor: event.status === "Open" ? "#22c55e" : "#a1a1aa",
-              color: "white",
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 20,
-              fontWeight: "600",
-              fontSize: 12,
+        {/* Event Header */}
+        <View style={styles.eventHeader}>
+          <View style={styles.eventTypeContainer}>
+            <Feather
+              name={event.type === "Hackathon" ? "code" : event.type === "Workshop" ? "book-open" : event.type === "Conference" ? "users" : "award"}
+              size={18}
+              color={colors.dot}
+            />
+            <Text style={[styles.eventTypeText, { color: colors.dot }]}>
+              {event.type}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: event.status === "Open" ? "#10b981" : "#6b7280" }
+            ]}
+          >
+            <Text style={styles.statusText}>{event.status}</Text>
+          </View>
+        </View>
+
+        {/* Event Title & Description */}
+        <View style={styles.eventBody}>
+          <Text style={styles.eventTitle} numberOfLines={2}>
+            {event.title}
+          </Text>
+          <Text style={styles.eventDescription} numberOfLines={2}>
+            {event.description}
+          </Text>
+          <Text style={styles.eventOrganizer} numberOfLines={1}>
+            by {event.organizer}
+          </Text>
+
+          {/* Event Info */}
+          <View style={styles.eventInfoContainer}>
+            <View style={styles.infoRow}>
+              <Feather name="calendar" size={14} color="#6b7280" />
+              <Text style={styles.infoText}>{event.date}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Feather name="clock" size={14} color="#6b7280" />
+              <Text style={styles.infoText}>{event.time}</Text>
+            </View>
+          </View>
+
+          <View style={styles.eventInfoContainer}>
+            <View style={[styles.infoRow, { flex: 1 }]}>
+              <Feather name="map-pin" size={14} color="#6b7280" />
+              <Text style={styles.infoText} numberOfLines={1}>
+                {event.location}
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Feather name="users" size={14} color="#6b7280" />
+              <Text style={styles.infoText}>{event.participants}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.eventFooter}>
+          <View>
+            <Text style={styles.feeLabel}>Fee</Text>
+            <Text style={styles.feeAmount}>{event.registrationFee}</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.registerButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              navigation.navigate("EventRegistration", { event });
             }}
           >
-            {event.status}
-          </Text>
+            <Text style={styles.registerButtonText}>Register</Text>
+            <Feather name="arrow-right" size={16} color="#fff" />
+          </TouchableOpacity>
         </View>
-        <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 8 }}>
-          {event.title}
-        </Text>
-        <Text style={{ color: "#6b7280", marginBottom: 10 }} numberOfLines={2}>
-          {event.description}
-        </Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 8 }}>
-          {event.tags.map((tag, idx) => (
-            <View
-              key={idx}
-              style={{
-                backgroundColor: "#e0e7ff",
-                borderRadius: 20,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                marginRight: 8,
-                marginBottom: 8,
-              }}
-            >
-              <Text style={{ color: "#3730a3", fontWeight: "600" }}>{tag}</Text>
-            </View>
-          ))}
-        </View>
-        <Text style={{ color: "#6b7280" }}>Date: {event.date}</Text>
-        <Text style={{ color: "#6b7280" }}>Time: {event.time}</Text>
-        <Text style={{ color: "#6b7280" }}>Location: {event.location}</Text>
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
+    <SafeAreaView className="flex-1 bg-gray-50">
       {/* Header */}
-      <View
-        style={{
-          padding: 16,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          borderBottomWidth: 1,
-          borderBottomColor: "#e5e7eb",
-          backgroundColor: "white",
-        }}
-      >
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Feather name="arrow-left" size={24} color="#1f2937" />
-        </TouchableOpacity>
-        <Text style={{ fontSize: 20, fontWeight: "bold" }}>Browse Events</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      {/* Search */}
-      <View
-        style={{
-          backgroundColor: "#e0e7ff",
-          margin: 16,
-          borderRadius: 12,
-          paddingHorizontal: 16,
-          paddingVertical: 10,
-          flexDirection: "row",
-          alignItems: "center",
-        }}
-      >
-        <Feather name="search" size={20} color="#6366f1" />
-        <TextInput
-          style={{ marginLeft: 12, flex: 1, color: "#4b5563" }}
-          placeholder="Search events..."
-          placeholderTextColor="#9ca3af"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery("")}>
-            <Feather name="x" size={20} color="#6b7280" />
+      <View className="bg-white px-6 py-4 border-b border-gray-100">
+        <View className="flex-row justify-between items-center mb-4">
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Feather name="arrow-left" size={24} color="#1f2937" />
           </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Category Selector */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ paddingLeft: 16, paddingBottom: 10 }}
-      >
-        {categories.map((cat) => (
-          <TouchableOpacity
-            key={cat.name}
-            onPress={() => setSelectedCategory(cat.name)}
-            style={{
-              backgroundColor: selectedCategory === cat.name ? "#4f46e5" : "#e0e7ff",
-              marginRight: 12,
-              paddingVertical: 8,
-              paddingHorizontal: 16,
-              borderRadius: 20,
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
-            <Feather
-              name={cat.icon}
-              size={16}
-              color={selectedCategory === cat.name ? "white" : "#4f46e5"}
-            />
-            <Text
-              style={{
-                marginLeft: 8,
-                fontWeight: "600",
-                color: selectedCategory === cat.name ? "white" : "#4f46e5",
-              }}
+          <Text className="text-xl font-bold text-gray-900">Browse Events</Text>
+          <View className="flex-row gap-3">
+            <TouchableOpacity onPress={() => navigation.navigate("MyEvents")}>
+              <Feather name="bookmark" size={24} color="#3b82f6" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate("AddEvent")}>
+              <Feather name="plus-circle" size={24} color="#3b82f6" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setViewMode(viewMode === "list" ? "map" : "list")}
             >
-              {cat.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <Feather
+                name={viewMode === "list" ? "map" : "list"}
+                size={24}
+                color="#3b82f6"
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-      {/* Events List */}
-      {loading ? (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator size="large" color="#4f46e5" />
+        {/* Search Bar */}
+        <View className="bg-gray-100 rounded-xl px-4 py-3 flex-row items-center">
+          <Feather name="search" size={20} color="#6b7280" />
+          <TextInput
+            placeholder="Search events..."
+            placeholderTextColor="#9ca3af"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            className="flex-1 ml-3 text-gray-900"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")}>
+              <Feather name="x" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          )}
         </View>
-      ) : filteredEvents.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <Text style={{ color: "#9ca3af", fontSize: 16 }}>No events found.</Text>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
-          {filteredEvents.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
+      </View>
+
+      {/* Category Filter */}
+      <View className="bg-white border-b border-gray-100">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
+        >
+          {categories.map((category) => {
+            const isActive = selectedCategory === category.name;
+
+            return (
+              <TouchableOpacity
+                key={category.name}
+                onPress={() => setSelectedCategory(category.name)}
+                style={[
+                  styles.categoryChip,
+                  isActive ? styles.categoryChipActive : styles.categoryChipInactive
+                ]}
+                activeOpacity={0.7}
+              >
+                <Feather
+                  name={category.icon}
+                  size={16}
+                  color={isActive ? "#ffffff" : "#6b7280"}
+                />
+                <Text
+                  style={[
+                    styles.categoryText,
+                    isActive ? styles.categoryTextActive : styles.categoryTextInactive
+                  ]}
+                >
+                  {category.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
+      </View>
+
+
+
+      {/* View Mode Toggle */}
+      {viewMode === "list" ? (
+        // List View
+        <ScrollView className="flex-1 px-6 py-4" showsVerticalScrollIndicator={false}>
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-base text-gray-600">
+              {filteredEvents.length} events found
+            </Text>
+            <TouchableOpacity className="flex-row items-center">
+              <Feather name="filter" size={16} color="#3b82f6" />
+              <Text className="text-blue-600 font-medium ml-2">Filter</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loading ? (
+            <View className="items-center justify-center py-20">
+              <ActivityIndicator size="large" color="#3b82f6" />
+              <Text className="text-gray-500 mt-4">Loading events...</Text>
+            </View>
+          ) : filteredEvents.length === 0 ? (
+            <View className="items-center justify-center py-20">
+              <Feather name="calendar" size={64} color="#d1d5db" />
+              <Text className="text-gray-500 mt-4 text-center">
+                No events found
+              </Text>
+              <Text className="text-gray-400 text-sm mt-2 text-center">
+                {eventsData.length === 0
+                  ? "Be the first to create an event!"
+                  : "Try adjusting your search or filters"}
+              </Text>
+              {eventsData.length === 0 && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("AddEvent")}
+                  className="mt-6 bg-blue-600 px-6 py-3 rounded-xl flex-row items-center"
+                >
+                  <Feather name="plus" size={20} color="#ffffff" />
+                  <Text className="text-white font-semibold ml-2">Create Event</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            filteredEvents.map((event) => <EventCard key={event.id} event={event} />)
+          )}
+        </ScrollView>
+      ) : (
+        // Map View
+        <View style={{ flex: 1 }}>
+          <MapView
+            ref={mapRef}
+            provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+            style={styles.map}
+            initialRegion={{
+                latitude: 15.2993,
+                longitude: 74.1240,
+                latitudeDelta: 0.02,
+                longitudeDelta: 0.02,
+            }}
+            showsUserLocation={true}
+            showsMyLocationButton={true}
+          >
+            {filteredEvents.map((event) => {
+              const colors = getEventTypeColor(event.type);
+              return (
+                <Marker
+                  key={event.id}
+                  coordinate={{
+                    latitude: event.latitude,
+                    longitude: event.longitude,
+                  }}
+                  onPress={() => handleMapMarkerPress(event)}
+                  pinColor={colors.dot}
+                  title={event.title}
+                  description={event.location}
+                />
+              );
+            })}
+          </MapView>
+
+          {/* Selected Event Card on Map */}
+          {selectedEvent && (
+            <View className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl px-6 py-4 border-t border-gray-200">
+              <TouchableOpacity
+                onPress={() => handleEventPress(selectedEvent)}
+                className="flex-row items-center"
+              >
+                <View className={`${getEventTypeColor(selectedEvent.type).bg} p-3 rounded-xl`}>
+                  <Feather
+                    name={
+                      selectedEvent.type === "Hackathon"
+                        ? "code"
+                        : selectedEvent.type === "Workshop"
+                        ? "book-open"
+                        : selectedEvent.type === "Conference"
+                        ? "users"
+                        : "award"
+                    }
+                    size={24}
+                    color={getEventTypeColor(selectedEvent.type).dot}
+                  />
+                </View>
+                <View className="flex-1 ml-4">
+                  <Text className="text-lg font-bold text-gray-900">
+                    {selectedEvent.title}
+                  </Text>
+                  <View className="flex-row items-center mt-1">
+                    <Feather name="map-pin" size={14} color="#6b7280" />
+                    <Text className="text-sm text-gray-600 ml-2" numberOfLines={1}>
+                      {selectedEvent.location}
+                    </Text>
+                  </View>
+                </View>
+                <Feather name="chevron-right" size={24} color="#9ca3af" />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       )}
 
       {/* Event Detail Modal */}
       <Modal
         visible={showEventModal}
         animationType="slide"
-        transparent
+        transparent={true}
         onRequestClose={() => setShowEventModal(false)}
       >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
+        <View className="flex-1 bg-black/50">
           <TouchableOpacity
-            style={{ flex: 1 }}
+            className="flex-1"
             activeOpacity={1}
             onPress={() => setShowEventModal(false)}
           />
-          {selectedEvent && (
-            <View
-              style={{
-                backgroundColor: "white",
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                maxHeight: height * 0.75,
-                padding: 20,
-              }}
-            >
-              <ScrollView>
-                <Text style={{ fontSize: 24, fontWeight: "bold" }}>
-                  {selectedEvent.title}
-                </Text>
-                <Text style={{ marginTop: 12, color: "#4b5563" }}>
-                  {selectedEvent.description}
-                </Text>
-              </ScrollView>
-            </View>
-          )}
+          <View className="bg-white rounded-t-3xl" style={{ maxHeight: height * 0.85 }}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {selectedEvent && (
+                <>
+                  {/* Modal Header */}
+                  <View className={`${getEventTypeColor(selectedEvent.type).bg} px-6 py-6`}>
+                    <View className="flex-row justify-between items-start">
+                      <View className="flex-1">
+                        <View className="flex-row items-center mb-2">
+                          <View
+                            className={`${getEventTypeColor(selectedEvent.type).bg} px-3 py-1 rounded-full`}
+                          >
+                            <Text
+                              className={`text-xs font-bold ${
+                                getEventTypeColor(selectedEvent.type).text
+                              }`}
+                            >
+                              {selectedEvent.type}
+                            </Text>
+                          </View>
+                          <View
+                            className={`ml-2 px-3 py-1 rounded-full ${
+                              selectedEvent.status === "Open" ? "bg-green-500" : "bg-gray-400"
+                            }`}
+                          >
+                            <Text className="text-xs text-white font-semibold">
+                              {selectedEvent.status}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text className="text-2xl font-bold text-gray-900 mb-1">
+                          {selectedEvent.title}
+                        </Text>
+                        <Text className="text-sm text-gray-600">
+                          Organized by {selectedEvent.organizer}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => setShowEventModal(false)}
+                        className="bg-white/50 p-2 rounded-full"
+                      >
+                        <Feather name="x" size={24} color="#1f2937" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Modal Content */}
+                  <View className="px-6 py-6">
+                    {/* Description */}
+                    <View className="mb-6">
+                      <Text className="text-lg font-bold text-gray-900 mb-2">
+                        About Event
+                      </Text>
+                      <Text className="text-base text-gray-600 leading-6">
+                        {selectedEvent.description}
+                      </Text>
+                    </View>
+
+                    {/* Tags */}
+                    <View className="mb-6">
+                      <Text className="text-lg font-bold text-gray-900 mb-3">
+                        Topics
+                      </Text>
+                      <View className="flex-row flex-wrap gap-2">
+                        {selectedEvent.tags.map((tag, index) => (
+                          <View
+                            key={index}
+                            className="bg-blue-100 px-4 py-2 rounded-xl"
+                          >
+                            <Text className="text-sm font-medium text-blue-700">
+                              {tag}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+
+                    {/* Event Details */}
+                    <View className="mb-6">
+                      <Text className="text-lg font-bold text-gray-900 mb-3">
+                        Event Details
+                      </Text>
+                      <View className="space-y-3">
+                        <View className="flex-row items-center py-3 border-b border-gray-100">
+                          <View className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center">
+                            <Feather name="calendar" size={20} color="#3b82f6" />
+                          </View>
+                          <View className="ml-4">
+                            <Text className="text-sm text-gray-500">Date</Text>
+                            <Text className="text-base font-semibold text-gray-900">
+                              {selectedEvent.date}
+                            </Text>
+                          </View>
+                        </View>
+                        <View className="flex-row items-center py-3 border-b border-gray-100">
+                          <View className="w-10 h-10 bg-green-100 rounded-full items-center justify-center">
+                            <Feather name="clock" size={20} color="#10b981" />
+                          </View>
+                          <View className="ml-4">
+                            <Text className="text-sm text-gray-500">Time</Text>
+                            <Text className="text-base font-semibold text-gray-900">
+                              {selectedEvent.time}
+                            </Text>
+                          </View>
+                        </View>
+                        <View className="flex-row items-center py-3 border-b border-gray-100">
+                          <View className="w-10 h-10 bg-purple-100 rounded-full items-center justify-center">
+                            <Feather name="map-pin" size={20} color="#8b5cf6" />
+                          </View>
+                          <View className="ml-4 flex-1">
+                            <Text className="text-sm text-gray-500">Location</Text>
+                            <Text className="text-base font-semibold text-gray-900">
+                              {selectedEvent.location}
+                            </Text>
+                          </View>
+                        </View>
+                        
+                        {/* Map Preview */}
+                        {selectedEvent.latitude && selectedEvent.longitude && (
+                          <View className="py-3 border-b border-gray-100">
+                            <Text className="text-sm text-gray-500 mb-3">Location on Map</Text>
+                            <View style={{ height: 200, borderRadius: 12, overflow: 'hidden' }}>
+                              <MapView
+                                provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                                style={{ flex: 1 }}
+                                initialRegion={{
+                                  latitude: selectedEvent.latitude,
+                                  longitude: selectedEvent.longitude,
+                                  latitudeDelta: 0.01,
+                                  longitudeDelta: 0.01,
+                                }}
+                                scrollEnabled={false}
+                                zoomEnabled={false}
+                                pitchEnabled={false}
+                                rotateEnabled={false}
+                              >
+                                <Marker
+                                  coordinate={{
+                                    latitude: selectedEvent.latitude,
+                                    longitude: selectedEvent.longitude,
+                                  }}
+                                  pinColor={getEventTypeColor(selectedEvent.type).dot}
+                                  title={selectedEvent.title}
+                                />
+                              </MapView>
+                            </View>
+                            <Text className="text-xs text-gray-500 mt-2">
+                              📍 {selectedEvent.latitude.toFixed(4)}, {selectedEvent.longitude.toFixed(4)}
+                            </Text>
+                          </View>
+                        )}
+                        
+                        <View className="flex-row items-center py-3 border-b border-gray-100">
+                          <View className="w-10 h-10 bg-orange-100 rounded-full items-center justify-center">
+                            <Feather name="users" size={20} color="#f97316" />
+                          </View>
+                          <View className="ml-4">
+                            <Text className="text-sm text-gray-500">Participants</Text>
+                            <Text className="text-base font-semibold text-gray-900">
+                              {selectedEvent.participants} registered
+                            </Text>
+                          </View>
+                        </View>
+                        <View className="flex-row items-center py-3">
+                          <View className="w-10 h-10 bg-pink-100 rounded-full items-center justify-center">
+                            <Feather name="dollar-sign" size={20} color="#ec4899" />
+                          </View>
+                          <View className="ml-4">
+                            <Text className="text-sm text-gray-500">
+                              Registration Fee
+                            </Text>
+                            <Text className="text-base font-semibold text-gray-900">
+                              {selectedEvent.registrationFee}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Action Buttons */}
+                    <View className="flex-row gap-3 mb-6">
+                      <TouchableOpacity 
+                        className="flex-1 bg-blue-600 py-4 rounded-xl items-center"
+                        onPress={() => {
+                          setShowEventModal(false);
+                          navigation.navigate("EventRegistration", { event: selectedEvent });
+                        }}
+                      >
+                        <Text className="text-white font-bold text-base">
+                          Register Now
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity className="bg-gray-100 px-6 py-4 rounded-xl items-center justify-center">
+                        <Feather name="share-2" size={20} color="#1f2937" />
+                      </TouchableOpacity>
+                      <TouchableOpacity className="bg-gray-100 px-6 py-4 rounded-xl items-center justify-center">
+                        <Feather name="bookmark" size={20} color="#1f2937" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
   );
 };
 
+const styles = StyleSheet.create({
+  map: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: '#3b82f6',
+  },
+  categoryChipInactive: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  categoryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  categoryTextActive: {
+    color: '#ffffff',
+  },
+  categoryTextInactive: {
+    color: '#6b7280',
+  },
+  eventCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  eventHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  eventTypeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventTypeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  eventBody: {
+    padding: 16,
+  },
+  eventTitle: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 6,
+  },
+  eventDescription: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  eventOrganizer: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginBottom: 12,
+  },
+  eventInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginLeft: 6,
+  },
+  eventFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  feeLabel: {
+    fontSize: 11,
+    color: '#9ca3af',
+    marginBottom: 2,
+  },
+  feeAmount: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  registerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  registerButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 6,
+  },
+});
+
 export default BrowseEvents;
+

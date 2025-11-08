@@ -466,7 +466,7 @@ const HomeDashboard = ({ navigation }) => {
             icon="calendar"
             label="Events"
             bg="#f97316"
-            onPress={() => navigation.navigate("Events")}
+            onPress={() => navigation.navigate("BrowseEvents")}
           />
           <QuickActionButton
             icon="calendar"
