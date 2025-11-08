@@ -25,6 +25,9 @@ import Feed from "./user_interfaces/home/Feed";
 import Profile from "./user_interfaces/home/Profile";
 import BrowseEvents from "./user_interfaces/home/BrowseEvents";
 import AddEvent from "./user_interfaces/home/AddEvent";
+import CommunityList from "./user_interfaces/home/CommunityList";
+import CreateCommunity from "./user_interfaces/home/CreateCommunity";
+import CommunityFeed from "./user_interfaces/home/CommunityFeed";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -114,6 +117,9 @@ function RootNavigator() {
         <Stack.Screen name="Profile" component={Profile} />
         <Stack.Screen name="Events" component={BrowseEvents} />
         <Stack.Screen name="AddEvent" component={AddEvent} />
+        <Stack.Screen name="CommunityList" component={CommunityList} />
+        <Stack.Screen name="CreateCommunity" component={CreateCommunity} />
+        <Stack.Screen name="CommunityFeed" component={CommunityFeed} />
       </Stack.Navigator>
     );
   }

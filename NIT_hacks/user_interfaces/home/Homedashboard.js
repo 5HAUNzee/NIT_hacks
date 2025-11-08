@@ -15,14 +15,12 @@ import { Feather } from "@expo/vector-icons";
 import { useUser, useAuth } from "@clerk/clerk-expo";
 import { doc, getDoc, collection, query, orderBy, getDocs } from "firebase/firestore";
 import { db } from "../../firebase.config";
-import ProfileSetupModal from "./ProfileSetupModal";
 
 const HomeDashboard = ({ navigation }) => {
   const { user, isLoaded: userLoaded } = useUser();
   const { signOut, isLoaded: authLoaded } = useAuth();
   const [firebaseData, setFirebaseData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [allProjects, setAllProjects] = useState([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
 
@@ -36,10 +34,6 @@ const HomeDashboard = ({ navigation }) => {
           if (userSnap.exists()) {
             const data = userSnap.data();
             setFirebaseData(data);
-
-            if (!data.profileCompleted) {
-              setShowProfileSetup(true);
-            }
           }
         }
       } catch (error) {
@@ -90,7 +84,7 @@ const HomeDashboard = ({ navigation }) => {
         onPress: async () => {
           try {
             await signOut();
-            navigation.replace("Login");
+            // No need to navigate - Clerk will automatically redirect to login
           } catch (error) {
             Alert.alert("Error", "Failed to logout");
           }
@@ -98,19 +92,6 @@ const HomeDashboard = ({ navigation }) => {
         style: "destructive",
       },
     ]);
-  };
-
-  const handleProfileComplete = async () => {
-    setShowProfileSetup(false);
-    try {
-      const userRef = doc(db, "users", user.id);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        setFirebaseData(userSnap.data());
-      }
-    } catch (error) {
-      console.error("Error reloading user data:", error);
-    }
   };
 
   if (!userLoaded || !authLoaded || loading) {
@@ -125,29 +106,34 @@ const HomeDashboard = ({ navigation }) => {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <ProfileSetupModal
-        visible={showProfileSetup}
-        onComplete={handleProfileComplete}
-      />
-
-      {/* Header with Profile, Notification */}
+      {/* Header with Brand and User Info */}
       <View className="flex-row justify-between items-center px-6 pt-4 pb-4 border-b border-gray-100">
-        <TouchableOpacity>
-          <Feather name="menu" size={24} color="#1f2937" />
-        </TouchableOpacity>
+        {/* Brand Name */}
+        <View className="flex-row items-center">
+          <Text style={styles.brandText}>
+            mitra<Text style={styles.brandAccent}>circle</Text>
+          </Text>
+        </View>
         
-        <View className="flex-row items-center gap-4">
-          <TouchableOpacity className="relative">
-            <Feather name="bell" size={24} color="#1f2937" />
-            <View className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+        {/* User Info */}
+        <View className="flex-row items-center">
+          <TouchableOpacity 
+            onPress={() => navigation.navigate("Profile")}
+            className="mr-3"
+          >
+            <Text className="text-sm font-medium text-gray-900 text-right">
+              {user.firstName} {user.lastName}
+            </Text>
+            <Text className="text-xs text-gray-500 text-right">
+              {user.primaryEmailAddress?.emailAddress}
+            </Text>
           </TouchableOpacity>
           
-          {/* Profile Button */}
           <TouchableOpacity
             onPress={() => navigation.navigate("Profile")}
-            className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center"
+            style={styles.profileButton}
           >
-            <Text className="text-blue-700 font-bold text-sm">
+            <Text style={styles.profileInitials}>
               {user.firstName?.[0]}{user.lastName?.[0]}
             </Text>
           </TouchableOpacity>
@@ -492,5 +478,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#374151",
     fontWeight: "600",
+  },
+  brandText: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#1d4ed8",
+    letterSpacing: -0.5,
+  },
+  brandAccent: {
+    color: "#8b5cf6",
+    fontWeight: "900",
+  },
+  profileButton: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#dbeafe",
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileInitials: {
+    color: "#1d4ed8",
+    fontWeight: "700",
+    fontSize: 14,
   },
 });

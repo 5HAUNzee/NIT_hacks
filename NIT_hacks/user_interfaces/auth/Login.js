@@ -9,10 +9,10 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSignIn } from "@clerk/clerk-expo";
 import { query, where, collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase.config";
@@ -95,269 +95,257 @@ const Login = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
-      <LinearGradient
-        colors={["#0f172a", "#1e293b", "#0f172a"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ flex: 1 }}
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardView}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1 }}
-            showsVerticalScrollIndicator={false}
-          >
-            <View
-              style={{
-                flex: 1,
-                paddingHorizontal: 24,
-                paddingVertical: 40,
-                justifyContent: "space-between",
-              }}
-            >
-              {/* Header with Icon */}
-              <View style={{ alignItems: "center", marginTop: 20 }}>
-                <View
-                  style={{
-                    width: 70,
-                    height: 70,
-                    borderRadius: 35,
-                    backgroundColor: "rgba(59, 130, 246, 0.15)",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginBottom: 24,
-                    borderWidth: 2,
-                    borderColor: "rgba(59, 130, 246, 0.3)",
-                  }}
-                >
-                  <Feather name="lock" size={36} color="#3b82f6" />
-                </View>
+          {/* Header with Icon */}
+          <View style={styles.headerSection}>
+            <View style={styles.iconContainer}>
+              <Feather name="lock" size={36} color="#3b82f6" />
+            </View>
 
-                <Text
-                  style={{
-                    fontSize: 32,
-                    fontWeight: "700",
-                    color: "#fff",
-                    marginBottom: 8,
-                    letterSpacing: -0.5,
-                  }}
-                >
-                  Welcome Back
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 15,
-                    color: "#94a3b8",
-                    textAlign: "center",
-                  }}
-                >
-                  Sign in to access your mentorship journey
-                </Text>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>
+              Sign in to access your mentorship journey
+            </Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.formSection}>
+            {/* Email Input */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Feather name="mail" size={18} color="#3b82f6" />
+                <Text style={styles.inputLabel}>Email Address</Text>
               </View>
-
-              {/* Form */}
-              <View>
-                {/* Email Input */}
-                <View style={{ marginBottom: 16 }}>
-                  <Text
-                    style={{
-                      color: "#e2e8f0",
-                      fontWeight: "600",
-                      marginBottom: 10,
-                      fontSize: 14,
-                      letterSpacing: 0.3,
-                    }}
-                  >
-                    Email Address
-                  </Text>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      backgroundColor: emailFocused ? "#1e293b" : "#0f172a",
-                      borderWidth: 1.5,
-                      borderColor: emailFocused ? "#3b82f6" : "#334155",
-                      borderRadius: 12,
-                      paddingHorizontal: 14,
-                      paddingVertical: 12,
-                    }}
-                  >
-                    <Feather
-                      name="mail"
-                      size={18}
-                      color={emailFocused ? "#3b82f6" : "#64748b"}
-                    />
-                    <TextInput
-                      placeholder="name@example.com"
-                      placeholderTextColor="#475569"
-                      value={email}
-                      onChangeText={setEmail}
-                      onFocus={() => setEmailFocused(true)}
-                      onBlur={() => setEmailFocused(false)}
-                      autoCapitalize="none"
-                      keyboardType="email-address"
-                      editable={!loading}
-                      style={{
-                        flex: 1,
-                        marginLeft: 12,
-                        color: "white",
-                        fontSize: 16,
-                        fontWeight: "500",
-                      }}
-                    />
-                  </View>
-                </View>
-
-                {/* Password Input */}
-                <View style={{ marginBottom: 24 }}>
-                  <Text
-                    style={{
-                      color: "#e2e8f0",
-                      fontWeight: "600",
-                      marginBottom: 10,
-                      fontSize: 14,
-                      letterSpacing: 0.3,
-                    }}
-                  >
-                    Password
-                  </Text>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      backgroundColor: passwordFocused ? "#1e293b" : "#0f172a",
-                      borderWidth: 1.5,
-                      borderColor: passwordFocused ? "#3b82f6" : "#334155",
-                      borderRadius: 12,
-                      paddingHorizontal: 14,
-                      paddingVertical: 12,
-                    }}
-                  >
-                    <Feather
-                      name="lock"
-                      size={18}
-                      color={passwordFocused ? "#3b82f6" : "#64748b"}
-                    />
-                    <TextInput
-                      placeholder="Enter your password"
-                      placeholderTextColor="#475569"
-                      value={password}
-                      onChangeText={setPassword}
-                      onFocus={() => setPasswordFocused(true)}
-                      onBlur={() => setPasswordFocused(false)}
-                      secureTextEntry={!showPassword}
-                      editable={!loading}
-                      style={{
-                        flex: 1,
-                        marginLeft: 12,
-                        color: "white",
-                        fontSize: 16,
-                        fontWeight: "500",
-                      }}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword(!showPassword)}
-                      style={{ padding: 8 }}
-                      disabled={loading}
-                    >
-                      <Feather
-                        name={showPassword ? "eye" : "eye-off"}
-                        size={18}
-                        color="#64748b"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Sign In Button */}
-                <TouchableOpacity
-                  onPress={handleEmailLogin}
-                  disabled={loading}
-                  activeOpacity={0.85}
-                  style={{
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    shadowColor: "#3b82f6",
-                    shadowOffset: { width: 0, height: 8 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 12,
-                    elevation: 6,
-                  }}
-                >
-                  <LinearGradient
-                    colors={["#6366f1", "#3b82f6"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={{
-                      paddingVertical: 14,
-                      paddingHorizontal: 24,
-                    }}
-                  >
-                    {loading ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text
-                        style={{
-                          color: "white",
-                          fontWeight: "700",
-                          textAlign: "center",
-                          fontSize: 16,
-                          letterSpacing: 0.5,
-                        }}
-                      >
-                        Sign In
-                      </Text>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-
-              {/* Footer */}
-              <View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  <Text style={{ color: "#64748b" }}>Don't have an account? </Text>
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate("SignUp")}
-                    disabled={loading}
-                  >
-                    <Text
-                      style={{
-                        color: "#3b82f6",
-                        fontWeight: "700",
-                        textDecorationLine: "underline",
-                      }}
-                    >
-                      Create one
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <Text
-                  style={{
-                    color: "#475569",
-                    fontSize: 12,
-                    textAlign: "center",
-                    fontStyle: "italic",
-                  }}
-                >
-                  Mentify • Secure Authentication
-                </Text>
+              <View style={[styles.inputCard, emailFocused && styles.inputCardFocused]}>
+                <TextInput
+                  placeholder="name@example.com"
+                  placeholderTextColor="#9ca3af"
+                  value={email}
+                  onChangeText={setEmail}
+                  onFocus={() => setEmailFocused(true)}
+                  onBlur={() => setEmailFocused(false)}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  editable={!loading}
+                  style={styles.input}
+                />
               </View>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </LinearGradient>
+
+            {/* Password Input */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Feather name="lock" size={18} color="#3b82f6" />
+                <Text style={styles.inputLabel}>Password</Text>
+              </View>
+              <View style={[styles.inputCard, passwordFocused && styles.inputCardFocused]}>
+                <TextInput
+                  placeholder="Enter your password"
+                  placeholderTextColor="#9ca3af"
+                  value={password}
+                  onChangeText={setPassword}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
+                  secureTextEntry={!showPassword}
+                  editable={!loading}
+                  style={[styles.input, { flex: 1 }]}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeButton}
+                  disabled={loading}
+                >
+                  <Feather
+                    name={showPassword ? "eye" : "eye-off"}
+                    size={18}
+                    color="#6b7280"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Sign In Button */}
+            <TouchableOpacity
+              onPress={handleEmailLogin}
+              disabled={loading}
+              activeOpacity={0.8}
+              style={[styles.signInButton, loading && styles.signInButtonDisabled]}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <View style={styles.buttonContent}>
+                  <Feather name="log-in" size={20} color="white" />
+                  <Text style={styles.signInButtonText}>Sign In</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <View style={styles.signUpRow}>
+              <Text style={styles.footerText}>Don't have an account? </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("SignUp")}
+                disabled={loading}
+              >
+                <Text style={styles.signUpLink}>Create one</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.brandText}>Mentify • Secure Authentication</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f9fafb",
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+    justifyContent: "space-between",
+  },
+  headerSection: {
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 40,
+  },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: "#3b82f6",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#1f2937",
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: "#6b7280",
+    textAlign: "center",
+  },
+  formSection: {
+    marginBottom: 32,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1f2937",
+    marginLeft: 8,
+  },
+  inputCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  inputCardFocused: {
+    borderColor: "#3b82f6",
+    borderWidth: 2,
+  },
+  input: {
+    fontSize: 16,
+    color: "#1f2937",
+  },
+  eyeButton: {
+    padding: 4,
+  },
+  signInButton: {
+    backgroundColor: "#3b82f6",
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+    shadowColor: "#3b82f6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  signInButtonDisabled: {
+    backgroundColor: "#9ca3af",
+    shadowOpacity: 0,
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  signInButtonText: {
+    color: "white",
+    fontWeight: "700",
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  footer: {
+    alignItems: "center",
+  },
+  signUpRow: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  footerText: {
+    color: "#6b7280",
+    fontSize: 14,
+  },
+  signUpLink: {
+    color: "#3b82f6",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  brandText: {
+    color: "#9ca3af",
+    fontSize: 12,
+  },
+});
 
 export default Login;

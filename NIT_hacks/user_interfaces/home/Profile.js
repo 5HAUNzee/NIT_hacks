@@ -102,7 +102,7 @@ const Profile = ({ navigation, route }) => {
         onPress: async () => {
           try {
             await signOut();
-            navigation.replace("Login");
+            // No need to navigate - Clerk will automatically redirect to login
           } catch (error) {
             console.error("Logout error:", error);
           }

@@ -1,28 +1,28 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Dimensions } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { View, Text, TouchableOpacity, Dimensions, StyleSheet } from "react-native";
+import { Feather } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
 
 const onboardingSlides = [
   {
-    icon: "account-group",
-    title: "Connect with Mentors",
+    icon: "users",
+    title: "Connect with Peers",
     description:
-      "Get personalized guidance from experienced mentors in your field",
-    color: "#3B82F6",
+      "Join communities, study circles, and collaborate with students across campus",
+    color: "#3b82f6",
   },
   {
-    icon: "chart-line",
-    title: "Track Your Progress",
-    description: "Monitor your academic journey with detailed analytics",
-    color: "#10B981",
+    icon: "calendar",
+    title: "Stay Updated",
+    description: "Never miss campus events, workshops, and important announcements",
+    color: "#10b981",
   },
   {
-    icon: "file-document-edit",
-    title: "Easy Semester Forms",
-    description: "Submit and manage semester forms with deadline tracking",
-    color: "#8B5CF6",
+    icon: "folder",
+    title: "Manage Projects",
+    description: "Create, share, and collaborate on projects with your team effortlessly",
+    color: "#8b5cf6",
   },
 ];
 
@@ -49,106 +49,206 @@ export default function On1({ navigation }) {
   const isLastSlide = currentSlide === onboardingSlides.length - 1;
 
   return (
-    <View className="flex-1 bg-blue-900">
+    <View style={styles.container}>
       {/* Skip Button - Top Right */}
       {!isLastSlide && (
         <TouchableOpacity
           onPress={handleNavigateToAuth}
-          className="absolute top-16 right-6 z-10 px-4 py-2"
+          style={styles.skipButton}
         >
-          <Text className="text-gray-300 text-base font-medium">Skip</Text>
+          <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
       )}
 
       {/* Main Content */}
-      <View className="flex-1 px-6 justify-center">
+      <View style={styles.mainContent}>
         {/* Icon Container */}
         <View
-          className="w-32 h-32 rounded-3xl items-center justify-center self-center mb-12"
-          style={{ backgroundColor: `${slide.color}25` }}
+          style={[
+            styles.iconContainer,
+            { backgroundColor: `${slide.color}15` },
+          ]}
         >
-          <MaterialCommunityIcons name={slide.icon} size={48} color={"white"} />
+          <Feather name={slide.icon} size={56} color={slide.color} />
         </View>
 
         {/* Title */}
-        <Text className="text-4xl font-bold text-white text-center mb-6">
-          {slide.title}
-        </Text>
+        <Text style={styles.title}>{slide.title}</Text>
 
         {/* Description */}
-        <Text className="text-lg text-gray-200 text-center leading-7 px-2">
-          {slide.description}
-        </Text>
+        <Text style={styles.description}>{slide.description}</Text>
 
         {/* Dots Indicator */}
-        <View className="flex-row justify-center gap-3 mt-16">
+        <View style={styles.dotsContainer}>
           {onboardingSlides.map((_, index) => (
             <View
               key={index}
-              className={`w-2.5 h-2.5 rounded-full ${
-                index === currentSlide ? "bg-white" : "bg-white/40"
-              }`}
+              style={[
+                styles.dot,
+                index === currentSlide ? styles.dotActive : styles.dotInactive,
+              ]}
             />
           ))}
         </View>
       </View>
 
       {/* Bottom Navigation */}
-      <View className="px-6 pb-12 pt-4">
+      <View style={styles.bottomNav}>
         {/* Navigation Buttons */}
-        <View className="flex-row justify-between items-center mb-8">
+        <View style={styles.navButtons}>
           {/* Back Button - Only show if not first slide */}
           {currentSlide > 0 ? (
-            <TouchableOpacity
-              onPress={prevSlide}
-              className="p-4 rounded-full bg-white/20"
-            >
-              <MaterialCommunityIcons
-                name="chevron-left"
-                size={24}
-                color="white"
-              />
+            <TouchableOpacity onPress={prevSlide} style={styles.navButton}>
+              <Feather name="chevron-left" size={24} color="#3b82f6" />
             </TouchableOpacity>
           ) : (
-            <View className="w-12" /> // Spacer for alignment
+            <View style={styles.spacer} />
           )}
 
           {/* Next/Get Started Button */}
           {!isLastSlide ? (
-            <TouchableOpacity
-              onPress={nextSlide}
-              className="p-4 rounded-full bg-white/20"
-            >
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color="white"
-              />
+            <TouchableOpacity onPress={nextSlide} style={styles.navButton}>
+              <Feather name="chevron-right" size={24} color="#3b82f6" />
             </TouchableOpacity>
           ) : (
-            <View className="flex-1 items-center">
+            <View style={styles.getStartedContainer}>
               <TouchableOpacity
                 onPress={handleNavigateToAuth}
-                className="bg-white px-16 py-5 rounded-2xl shadow-lg shadow-black/25 w-full max-w-xs"
+                style={styles.getStartedButton}
               >
-                <Text className="text-blue-900 text-lg font-semibold text-center">
-                  Get Started
-                </Text>
+                <Text style={styles.getStartedText}>Get Started</Text>
+                <Feather name="arrow-right" size={20} color="white" />
               </TouchableOpacity>
             </View>
           )}
         </View>
-
-        {/* Login Option - Only show on last slide */}
-        {isLastSlide && (
-          <TouchableOpacity
-            onPress={handleNavigateToAuth}
-            className="py-4 rounded-2xl items-center"
-          >
-          
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f9fafb",
+  },
+  skipButton: {
+    position: "absolute",
+    top: 60,
+    right: 24,
+    zIndex: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  skipText: {
+    color: "#6b7280",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  iconContainer: {
+    width: 140,
+    height: 140,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 48,
+    borderWidth: 2,
+    borderColor: "#e5e7eb",
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#1f2937",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  description: {
+    fontSize: 17,
+    color: "#6b7280",
+    textAlign: "center",
+    lineHeight: 26,
+    paddingHorizontal: 8,
+  },
+  dotsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 12,
+    marginTop: 64,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dotActive: {
+    backgroundColor: "#3b82f6",
+    width: 24,
+  },
+  dotInactive: {
+    backgroundColor: "#d1d5db",
+  },
+  bottomNav: {
+    paddingHorizontal: 24,
+    paddingBottom: 48,
+    paddingTop: 16,
+  },
+  navButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  navButton: {
+    padding: 16,
+    borderRadius: 50,
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  spacer: {
+    width: 48,
+  },
+  getStartedContainer: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  getStartedButton: {
+    backgroundColor: "#3b82f6",
+    paddingHorizontal: 48,
+    paddingVertical: 18,
+    borderRadius: 16,
+    shadowColor: "#3b82f6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    width: "100%",
+    maxWidth: 300,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  getStartedText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+});
