@@ -127,15 +127,28 @@ const HomeDashboard = ({ navigation }) => {
         onComplete={handleProfileComplete}
       />
 
-      {/* Header with Notification */}
+      {/* Header with Profile, Notification */}
       <View className="flex-row justify-between items-center px-6 pt-4 pb-4 border-b border-gray-100">
         <TouchableOpacity>
           <Feather name="menu" size={24} color="#1f2937" />
         </TouchableOpacity>
-        <TouchableOpacity className="relative">
-          <Feather name="bell" size={24} color="#1f2937" />
-          <View className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
-        </TouchableOpacity>
+        
+        <View className="flex-row items-center gap-4">
+          <TouchableOpacity className="relative">
+            <Feather name="bell" size={24} color="#1f2937" />
+            <View className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+          </TouchableOpacity>
+          
+          {/* Profile Button */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Profile")}
+            className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center"
+          >
+            <Text className="text-blue-700 font-bold text-sm">
+              {user.firstName?.[0]}{user.lastName?.[0]}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
@@ -305,6 +318,20 @@ const HomeDashboard = ({ navigation }) => {
               </View>
               <Text className="text-base text-gray-900 ml-4 flex-1">
                 Join Study Circle
+              </Text>
+              <Feather name="chevron-right" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+
+            {/* Community Feed - NEW */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate("Feed")}
+              className="flex-row items-center bg-white border border-gray-200 rounded-xl p-4"
+            >
+              <View className="w-10 h-10 bg-pink-100 rounded-lg items-center justify-center">
+                <Feather name="hash" size={20} color="#ec4899" />
+              </View>
+              <Text className="text-base text-gray-900 ml-4 flex-1">
+                Community Feed
               </Text>
               <Feather name="chevron-right" size={20} color="#9ca3af" />
             </TouchableOpacity>
