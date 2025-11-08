@@ -1,4 +1,4 @@
- const GITHUB_TOKEN="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";
+ const GITHUB_TOKEN="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";
 /**
  * Extract GitHub username from various GitHub URL formats
  * @param {string} githubLink - The GitHub profile link

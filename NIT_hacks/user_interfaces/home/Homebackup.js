@@ -1,332 +1,95 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Alert,
-  ScrollView,
-  ActivityIndicator,
-  TextInput,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
-import { useUser, useAuth } from "@clerk/clerk-expo";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../../firebase.config";
-
-const HomeDashboard = ({ navigation }) => {
-  const { user, isLoaded: userLoaded } = useUser();
-  const { signOut, isLoaded: authLoaded } = useAuth();
-  const [firebaseData, setFirebaseData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  // 🔹 Sentiment analyzer states
-  const [userInput, setUserInput] = useState("");
-  const [sentimentResult, setSentimentResult] = useState(null);
-  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
-
-  React.useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        if (user && db) {
-          const userRef = doc(db, "users", user.id);
-          const userSnap = await getDoc(userRef);
-
-          if (userSnap.exists()) {
-            setFirebaseData(userSnap.data());
-          }
-        }
-      } catch (error) {
-        console.error("Error loading user data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadUserData();
-  }, [user]);
-
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        onPress: async () => {
-          try {
-            await signOut();
-            navigation.replace("Login");
-          } catch (error) {
-            Alert.alert("Error", "Failed to logout");
-          }
-        },
-        style: "destructive",
-      },
-    ]);
-  };
-
-  // 🔹 Sentiment analysis function
-  const analyzeSentiment = async () => {
-    if (!userInput.trim()) {
-      Alert.alert("Please enter text to analyze");
-      return;
-    }
-
-    try {
-      setLoadingAnalysis(true);
-      setSentimentResult(null);
-
-      // ⚠️ Replace with your deployed backend or cloud function URL
-      const response = await fetch("https://nit-hacks.onrender.com/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: userInput }),
-      });
-
-      const data = await response.json();
-      setSentimentResult(data);
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Error analyzing sentiment");
-    } finally {
-      setLoadingAnalysis(false);
-    }
-  };
-
-  if (!userLoaded || !authLoaded || loading) {
-    return (
-      <SafeAreaView className="flex-1 bg-black">
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#fff" />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView className="flex-1 bg-black">
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View className="px-6 pt-20 pb-10">
-          <View className="flex-row justify-between items-start">
-            <View>
-              <Text className="text-xs text-gray-600 mb-2 tracking-widest">
-                DASHBOARD
-              </Text>
-              <Text className="text-5xl font-light text-white">
-                {firebaseData?.firstName || "Hello"}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={handleLogout}
-              className="w-11 h-11 rounded-full bg-zinc-900 justify-center items-center border border-zinc-800"
-            >
-              <Feather name="log-out" size={18} color="#999" />
+ {activeTab === "Notes" && (
+        <View style={{ flex: 1 }}>
+          <ScrollView style={{ flex: 1, padding: 24 }}>
+            {notes.length === 0 ? (
+              <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 40 }}>
+                <Feather name="file-text" size={48} color="#d1d5db" />
+                <Text style={{ marginTop: 16, color: "#6b7280" }}>No notes yet</Text>
+                <Text style={{ marginTop: 8, color: "#9ca3af", textAlign: "center" }}>Share study notes with your circle</Text>
+              </View>
+            ) : (
+              notes.map((note) => (
+                <View key={note.id} style={{ backgroundColor: "white", borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                  <TouchableOpacity onPress={() => openNote(note.url)} style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={{ width: 48, height: 48, backgroundColor: "#fee2e2", borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 16 }}>
+                      <Feather name="file-text" size={24} color="#b91c1c" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: "600", fontSize: 16, marginBottom: 4 }}>{note.title}</Text>
+                      <Text style={{ fontSize: 12, color: "#6b7280" }}>Uploaded by {note.uploaderName} • {formatTime(note.createdAt)}</Text>
+                    </View>
+                    <Feather name="external-link" size={20} color="#9ca3af" />
+                  </TouchableOpacity>
+                  {note.uploadedBy === user.id && (
+                    <TouchableOpacity onPress={() => deleteNote(note.id, note.uploadedBy)} style={{ marginTop: 12, backgroundColor: "#fee2e2", padding: 8, borderRadius: 8, flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
+                      <Feather name="trash-2" size={16} color="#b91c1c" />
+                      <Text style={{ color: "#b91c1c", fontWeight: "600", marginLeft: 8 }}>Delete</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))
+            )}
+          </ScrollView>
+          <View style={{ paddingHorizontal: 24, paddingVertical: 16, borderTopWidth: 1, borderTopColor: "#e5e7eb" }}>
+            <TouchableOpacity onPress={uploadNote} disabled={uploadingNote} style={{ backgroundColor: uploadingNote ? "#a5b4fc" : "#111827", paddingVertical: 16, borderRadius: 12, justifyContent: "center", alignItems: "center", flexDirection: "row", gap: 6 }}>
+              {uploadingNote ? <ActivityIndicator color="#fff" /> : <Feather name="upload" size={20} color="#fff" />}
+              <Text style={{ color: "white", fontWeight: "600", fontSize: 16 }}>Upload PDF Note</Text>
             </TouchableOpacity>
           </View>
         </View>
+      )}
 
-        {/* Profile Card */}
-        <View className="px-6 mb-12">
-          <View className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800">
-            {/* Avatar */}
-            <View className="w-18 h-18 rounded-full bg-white justify-center items-center mb-6">
-              <Text className="text-3xl font-semibold text-black">
-                {firebaseData?.firstName?.charAt(0) || "U"}
-                {firebaseData?.lastName?.charAt(0) || ""}
-              </Text>
-            </View>
-
-            {/* Name */}
-            <Text className="text-2xl font-normal text-white mb-1">
-              {firebaseData?.firstName && firebaseData?.lastName
-                ? `${firebaseData.firstName} ${firebaseData.lastName}`
-                : "User"}
-            </Text>
-
-            {/* Email */}
-            <Text className="text-sm text-gray-500 mb-1">
-              {firebaseData?.email || user?.primaryEmailAddress?.emailAddress}
-            </Text>
-
-            {/* Username */}
-            {firebaseData?.username && (
-              <Text className="text-xs text-gray-600 mt-1">
-                @{firebaseData.username}
-              </Text>
+      {activeTab === "Sessions" && (
+        <View style={{ flex: 1 }}>
+          <ScrollView style={{ flex: 1, padding: 24 }}>
+            {sessions.length === 0 ? (
+              <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 40 }}>
+                <Feather name="calendar" size={48} color="#d1d5db" />
+                <Text style={{ marginTop: 16, color: "#6b7280" }}>No sessions scheduled</Text>
+                <Text style={{ marginTop: 8, color: "#9ca3af", textAlign: "center" }}>Schedule study sessions with members</Text>
+              </View>
+            ) : (
+              sessions.map((session) => (
+                <View key={session.id} style={{ backgroundColor: "white", borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                  <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 8 }}>{session.title}</Text>
+                  <Text style={{ fontSize: 14, color: "#6b7280", marginBottom: 8 }}>{session.meetingTime}</Text>
+                  <TouchableOpacity onPress={() => openSessionLink(session.meetingLink)} style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Feather name="external-link" size={20} color="#2563eb" />
+                    <Text style={{ marginLeft: 8, fontWeight: "600", color: "#2563eb" }}>Join Meeting</Text>
+                  </TouchableOpacity>
+                  <Text style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>Scheduled by {session.creatorName}</Text>
+                </View>
+              ))
             )}
-          </View>
-        </View>
-
-        {/* AI Chat Highlight Card */}
-        <View className="px-6 mb-12">
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Chat")}
-            className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl p-8 border border-blue-500 border-opacity-50"
-          >
-            <View className="flex-row items-center justify-between">
-              <View className="flex-1">
-                <Text className="text-xs text-blue-200 mb-2 tracking-widest">
-                  FEATURE
-                </Text>
-                <Text className="text-2xl font-semibold text-white mb-2">
-                  Chat with AI
-                </Text>
-                <Text className="text-sm text-blue-100">
-                  Ask Gemini anything
-                </Text>
-              </View>
-              <View className="w-12 h-12 bg-white bg-opacity-20 rounded-full justify-center items-center">
-                <Feather name="message-circle" size={24} color="#fff" />
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Actions */}
-        <View className="px-6 pb-20">
-          <Text className="text-xs text-gray-600 mb-4 tracking-widest">
-            QUICK ACTIONS
-          </Text>
-
-          {/* Edit Profile */}
-          <TouchableOpacity className="flex-row justify-between items-center py-4.5 border-b border-zinc-800">
-            <View className="flex-row items-center">
-              <Feather name="edit-3" size={16} color="#fff" />
-              <Text className="text-white ml-4 text-base font-normal">
-                Edit Profile
-              </Text>
-            </View>
-            <Feather name="arrow-right" size={16} color="#555" />
-          </TouchableOpacity>
-
-          {/* Notifications */}
-          <TouchableOpacity className="flex-row justify-between items-center py-4.5 border-b border-zinc-800">
-            <View className="flex-row items-center">
-              <Feather name="bell" size={16} color="#fff" />
-              <Text className="text-white ml-4 text-base font-normal">
-                Notifications
-              </Text>
-            </View>
-            <Feather name="arrow-right" size={16} color="#555" />
-          </TouchableOpacity>
-
-          {/* Chat with AI */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Chat")}
-            className="flex-row justify-between items-center py-4.5 border-b border-zinc-800"
-          >
-            <View className="flex-row items-center">
-              <Feather name="zap" size={16} color="#3b82f6" />
-              <Text className="text-white ml-4 text-base font-normal">
-                Chat with AI
-              </Text>
-            </View>
-            <Feather name="arrow-right" size={16} color="#555" />
-          </TouchableOpacity>
-
-          {/* Settings */}
-          <TouchableOpacity className="flex-row justify-between items-center py-4.5 border-b border-zinc-800">
-            <View className="flex-row items-center">
-              <Feather name="settings" size={16} color="#fff" />
-              <Text className="text-white ml-4 text-base font-normal">
-                Settings
-              </Text>
-            </View>
-            <Feather name="arrow-right" size={16} color="#555" />
-          </TouchableOpacity>
-
-          {/* Help */}
-          <TouchableOpacity className="flex-row justify-between items-center py-4.5 border-b border-zinc-800">
-            <View className="flex-row items-center">
-              <Feather name="help-circle" size={16} color="#fff" />
-              <Text className="text-white ml-4 text-base font-normal">
-                Help & Support
-              </Text>
-            </View>
-            <Feather name="arrow-right" size={16} color="#555" />
-          </TouchableOpacity>
-
-          {/* Logout */}
-          <TouchableOpacity
-            onPress={handleLogout}
-            className="flex-row justify-between items-center py-4.5"
-          >
-            <View className="flex-row items-center">
-              <Feather name="log-out" size={16} color="#ef4444" />
-              <Text className="text-red-500 ml-4 text-base font-normal">
-                Logout
-              </Text>
-            </View>
-            <Feather name="arrow-right" size={16} color="#555" />
-          </TouchableOpacity>
-        </View>
-
-        {/* 🔹 Sentiment Analyzer Section */}
-        <View className="px-6 pb-20">
-          <Text className="text-xs text-gray-600 mb-4 tracking-widest">
-            SENTIMENT ANALYZER
-          </Text>
-
-          <View className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800">
-            <Text className="text-white mb-2">Enter text to analyze:</Text>
-
-            <View
-              style={{
-                backgroundColor: "#18181b",
-                borderRadius: 12,
-                padding: 12,
-                marginBottom: 12,
-              }}
-            >
-              <TextInput
-                style={{ color: "white", fontSize: 16 }}
-                placeholder="Type something..."
-                placeholderTextColor="#555"
-                multiline
-                value={userInput}
-                onChangeText={setUserInput}
-              />
-            </View>
-
-            <TouchableOpacity
-              onPress={analyzeSentiment}
-              className="bg-blue-600 py-3 rounded-xl items-center"
-            >
-              <Text className="text-white font-semibold text-base">
-                Analyze
-              </Text>
+          </ScrollView>
+          <View style={{ paddingHorizontal: 24, paddingVertical: 16, borderTopWidth: 1, borderTopColor: "#e5e7eb" }}>
+            <TouchableOpacity onPress={() => setShowSessionModal(true)} style={{ backgroundColor: "#111827", paddingVertical: 16, borderRadius: 12, justifyContent: "center", alignItems: "center", flexDirection: "row", gap: 8 }}>
+              <Feather name="plus-circle" size={20} color="#fff" />
+              <Text style={{ color: "white", fontWeight: "700", fontSize: 16 }}>Schedule New Session</Text>
             </TouchableOpacity>
-
-            {loadingAnalysis && (
-              <ActivityIndicator
-                size="small"
-                color="#3b82f6"
-                style={{ marginTop: 10 }}
-              />
-            )}
-
-            {sentimentResult && !loadingAnalysis && (
-              <View style={{ marginTop: 16 }}>
-                <Text className="text-gray-400">Result:</Text>
-                <Text
-                  className={`text-lg font-semibold ${
-                    sentimentResult.overall === "positive"
-                      ? "text-green-400"
-                      : sentimentResult.overall === "negative"
-                      ? "text-red-400"
-                      : "text-yellow-400"
-                  }`}
-                >
-                  {sentimentResult.overall.toUpperCase()} (
-                  {sentimentResult.score})
-                </Text>
-              </View>
-            )}
           </View>
+          <Modal
+            visible={showSessionModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setShowSessionModal(false)}
+          >
+            <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 24 }}>
+              <View style={{ backgroundColor: "white", borderRadius: 16, padding: 24 }}>
+                <Text style={{ fontSize: 20, fontWeight: "700", marginBottom: 12 }}>Schedule Session</Text>
+                <TextInput placeholder="Session Title" value={sessionTitle} onChangeText={setSessionTitle} style={{ borderWidth: 1, borderColor: "#d1d5db", borderRadius: 12, padding: 12, marginBottom: 12 }} />
+                <TextInput placeholder="Pick date & time (e.g. Mon 10 Nov, 6:30PM)" value={sessionDateString} onChangeText={setSessionDateString} style={{ borderWidth: 1, borderColor: "#d1d5db", borderRadius: 12, padding: 12, marginBottom: 12 }} />
+                <TextInput placeholder="Meeting Link (e.g., Google Meet)" value={sessionLink} onChangeText={setSessionLink} style={{ borderWidth: 1, borderColor: "#d1d5db", borderRadius: 12, padding: 12, marginBottom: 24 }} />
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <TouchableOpacity onPress={addSession} disabled={addingSession} style={{ backgroundColor: "#111827", flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: "center", marginRight: 12 }}>
+                    <Text style={{ color: "white", fontWeight: "700", fontSize: 16 }}>{addingSession ? "Scheduling..." : "Schedule"}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setShowSessionModal(false)} style={{ backgroundColor: "#e5e7eb", flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: "center" }}>
+                    <Text style={{ color: "#374151", fontWeight: "700", fontSize: 16 }}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-};
-
-export default HomeDashboard;
+      )}
