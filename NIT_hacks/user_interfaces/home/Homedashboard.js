@@ -194,6 +194,32 @@ const HomeDashboard = ({ navigation }) => {
               {user.lastName?.[0]}
             </Text>
           </TouchableOpacity>
+          {/* Logout button */}
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert("Logout", "Are you sure you want to log out?", [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Logout",
+                  style: "destructive",
+                  onPress: () => {
+                    signOut().catch((err) =>
+                      Alert.alert("Error", "Failed to log out: " + err.message)
+                    );
+                  },
+                },
+              ]);
+            }}
+            style={{
+              marginLeft: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <Feather name="log-out" size={20} color="#ef4444" />
+            <Text style={{ color: "#ef4444", fontWeight: "600" }}>Logout</Text>
+          </TouchableOpacity>
         </View>
       </View>
 

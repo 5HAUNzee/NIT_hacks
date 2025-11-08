@@ -286,7 +286,9 @@ const ProfileSetupModal = ({ visible, onComplete }) => {
                     >
                       <Text
                         className={
-                          skills.includes(skill) ? "text-white" : "text-gray-400"
+                          skills.includes(skill)
+                            ? "text-white"
+                            : "text-gray-400"
                         }
                       >
                         {skill}
@@ -332,7 +334,9 @@ const ProfileSetupModal = ({ visible, onComplete }) => {
           {/* Step 3: Social Links */}
           {step === 3 && (
             <View className="px-6">
-              <Text className="text-white font-semibold mb-4">Social Links</Text>
+              <Text className="text-white font-semibold mb-4">
+                Social Links
+              </Text>
 
               {/* GitHub */}
               <View className="mb-4">
@@ -419,7 +423,9 @@ const ProfileSetupModal = ({ visible, onComplete }) => {
                 className="flex-1 py-4 bg-zinc-900 rounded-xl border border-zinc-700"
                 disabled={loading}
               >
-                <Text className="text-white text-center font-semibold">Back</Text>
+                <Text className="text-white text-center font-semibold">
+                  Back
+                </Text>
               </TouchableOpacity>
             )}
 
@@ -432,10 +438,10 @@ const ProfileSetupModal = ({ visible, onComplete }) => {
                 {loading
                   ? "Saving..."
                   : uploadingImage
-                  ? "Uploading..."
-                  : step === 3
-                  ? "Complete Setup"
-                  : "Next"}
+                    ? "Uploading..."
+                    : step === 3
+                      ? "Complete Setup"
+                      : "Next"}
               </Text>
             </TouchableOpacity>
           </View>
