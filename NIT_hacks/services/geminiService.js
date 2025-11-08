@@ -1,7 +1,14 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// Load API key from environment. Put your key in a local `.env` as GEMINI_API_KEY.
+// If you don't have dotenv wired in your environment (React Native/Expo needs a specific approach),
+// ensure the environment variable is provided by your runtime/CI.
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "<REPLACE_WITH_GEMINI_API_KEY>";
+if (GEMINI_API_KEY === "<REPLACE_WITH_GEMINI_API_KEY>") {
+  console.warn("Warning: GEMINI_API_KEY not set. Set it in a .env file or environment variables.");
+}
 // ✅ USE LATEST MODEL
-const genAI = new GoogleGenerativeAI("AIzaSyAfnpco67GQGvlectcdU7lo32qLaFU7600");
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // ✅ CHANGED
 
