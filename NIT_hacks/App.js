@@ -23,10 +23,8 @@ import CreateCircle from "./user_interfaces/home/CreateCircle";
 import CircleDetails from "./user_interfaces/home/CircleDetails";
 import Feed from "./user_interfaces/home/Feed";
 import Profile from "./user_interfaces/home/Profile";
-
-
-
-
+import BrowseEvents from "./user_interfaces/home/BrowseEvents";
+import AddEvent from "./user_interfaces/home/AddEvent";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -114,6 +112,8 @@ function RootNavigator() {
         <Stack.Screen name="CircleDetails" component={CircleDetails} />
         <Stack.Screen name="Feed" component={Feed} />
         <Stack.Screen name="Profile" component={Profile} />
+        <Stack.Screen name="Events" component={BrowseEvents} />
+        <Stack.Screen name="AddEvent" component={AddEvent} />
       </Stack.Navigator>
     );
   }

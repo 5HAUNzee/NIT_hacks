@@ -1,4 +1,5 @@
-import { GITHUB_TOKEN } from '@env';
+// Get GitHub token from environment variables
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || process.env.EXPO_PUBLIC_GITHUB_TOKEN;
 
 /**
  * Extract GitHub username from various GitHub URL formats
