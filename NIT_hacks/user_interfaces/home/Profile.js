@@ -516,14 +516,20 @@ const Profile = ({ navigation, route }) => {
         {isOwnProfile && (
           <View style={{ paddingHorizontal: 24, paddingVertical: 24 }}>
             <TouchableOpacity
+              onPress={() => navigation.navigate("EditProfile")}
               style={{
                 backgroundColor: "#3b82f6",
                 paddingVertical: 16,
                 borderRadius: 12,
                 alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
               }}
             >
-              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>Edit Profile</Text>
+              <Feather name="edit-2" size={20} color="#fff" />
+              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700", marginLeft: 8 }}>
+                Edit Profile
+              </Text>
             </TouchableOpacity>
           </View>
         )}

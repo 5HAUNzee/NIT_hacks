@@ -23,11 +23,12 @@ import CreateCircle from "./user_interfaces/home/CreateCircle";
 import CircleDetails from "./user_interfaces/home/CircleDetails";
 import Feed from "./user_interfaces/home/Feed";
 import Profile from "./user_interfaces/home/Profile";
-import BrowseEvents from "./user_interfaces/home/BrowseEvents";
-import AddEvent from "./user_interfaces/home/AddEvent";
+import EditProfile from "./user_interfaces/home/EditProfile";
+
+
 import CommunityList from "./user_interfaces/home/CommunityList";
 import CreateCommunity from "./user_interfaces/home/CreateCommunity";
-import CommunityList from "./user_interfaces/home/CommunityList";
+
 import AddEvent from "./user_interfaces/home/AddEvent";
 import BrowseEvents from "./user_interfaces/home/BrowseEvents";
 import EventRegistration from "./user_interfaces/home/EventRegistration";
@@ -120,12 +121,11 @@ function RootNavigator() {
         <Stack.Screen name="CircleDetails" component={CircleDetails} />
         <Stack.Screen name="Feed" component={Feed} />
         <Stack.Screen name="Profile" component={Profile} />
+        <Stack.Screen name="EditProfile" component={EditProfile} />
         <Stack.Screen name="Events" component={BrowseEvents} />
         <Stack.Screen name="AddEvent" component={AddEvent} />
         <Stack.Screen name="CommunityList" component={CommunityList} />
         <Stack.Screen name="CreateCommunity" component={CreateCommunity} />
-        <Stack.Screen name="CommunityList" component={CommunityList} />
-        <Stack.Screen name="AddEvent" component={AddEvent} />
         <Stack.Screen name="BrowseEvents" component={BrowseEvents} />
         <Stack.Screen name="EventRegistration" component={EventRegistration} />
         <Stack.Screen name="MyEvents" component={MyEvents} />

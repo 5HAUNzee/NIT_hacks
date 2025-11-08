@@ -112,7 +112,7 @@ const Login = ({ navigation }) => {
 
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>
-              Sign in to access your mentorship journey
+              Sign in to connect with your campus community
             </Text>
           </View>
 
@@ -202,7 +202,7 @@ const Login = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.brandText}>Mentify • Secure Authentication</Text>
+            <Text style={styles.brandText}>mitracircle • Campus Connect</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -1,6 +1,6 @@
 // Cloudinary Configuration
 const CLOUDINARY_CLOUD_NAME = "dfqa2ojqr";
-const CLOUDINARY_UPLOAD_PRESET = "Mentify";
+const CLOUDINARY_UPLOAD_PRESET = "mitracircle";
 const CLOUDINARY_IMAGE_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
 const CLOUDINARY_RAW_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`;
 
