@@ -22,7 +22,13 @@ import StudyCircles from "./user_interfaces/home/StudyCircles";
 import CreateCircle from "./user_interfaces/home/CreateCircle";
 import CircleDetails from "./user_interfaces/home/CircleDetails";
 import Feed from "./user_interfaces/home/Feed";
-
+import Profile from "./user_interfaces/home/Profile";
+import CommunityFeed from "./user_interfaces/home/CommunityFeed";
+import CommunityDetails from "./user_interfaces/home/CommunityDetails";
+import CreateCommunity from "./user_interfaces/home/CreateCommunity";
+import CommunityList from "./user_interfaces/home/CommunityList";
+import AddEvent from "./user_interfaces/home/AddEvent";
+import BrowseEvents from "./user_interfaces/home/BrowseEvents";
 
 
 WebBrowser.maybeCompleteAuthSession();
@@ -110,6 +116,13 @@ function RootNavigator() {
         <Stack.Screen name="CreateCircle" component={CreateCircle} />
         <Stack.Screen name="CircleDetails" component={CircleDetails} />
         <Stack.Screen name="Feed" component={Feed} />
+        <Stack.Screen name="Profile" component={Profile} />
+        <Stack.Screen name="CommunityFeed" component={CommunityFeed} />
+        <Stack.Screen name="CommunityDetails" component={CommunityDetails} />
+        <Stack.Screen name="CreateCommunity" component={CreateCommunity} />
+        <Stack.Screen name="CommunityList" component={CommunityList} />
+        <Stack.Screen name="AddEvent" component={AddEvent} />
+        <Stack.Screen name="BrowseEvents" component={BrowseEvents} />
       </Stack.Navigator>
     );
   }
