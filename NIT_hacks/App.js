@@ -16,6 +16,26 @@ import Login from "./user_interfaces/auth/Login";
 import Homedashboard from "./user_interfaces/home/Homedashboard";
 import SignUp from "./user_interfaces/auth/Signup";
 import ChatScreen from "./user_interfaces/home/Chat";
+import CreateProject from "./user_interfaces/home/CreateProject";
+import ProjectDetails from "./user_interfaces/home/ProjectDetails";
+import StudyCircles from "./user_interfaces/home/StudyCircles";
+import CreateCircle from "./user_interfaces/home/CreateCircle";
+import CircleDetails from "./user_interfaces/home/CircleDetails";
+import Feed from "./user_interfaces/home/Feed";
+import Profile from "./user_interfaces/home/Profile";
+import EditProfile from "./user_interfaces/home/EditProfile";
+
+
+import CommunityList from "./user_interfaces/home/CommunityList";
+import CreateCommunity from "./user_interfaces/home/CreateCommunity";
+import CommunityFeed from "./user_interfaces/home/CommunityFeed";
+import CommunityDetails from "./user_interfaces/home/CommunityDetails";
+
+import AddEvent from "./user_interfaces/home/AddEvent";
+import BrowseEvents from "./user_interfaces/home/BrowseEvents";
+import EventRegistration from "./user_interfaces/home/EventRegistration";
+import MyEvents from "./user_interfaces/home/MyEvents";
+
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -96,6 +116,23 @@ function RootNavigator() {
       >
         <Stack.Screen name="HomeDashboard" component={Homedashboard} />
         <Stack.Screen name="Chat" component={ChatScreen} />
+        <Stack.Screen name="CreateProject" component={CreateProject} />
+        <Stack.Screen name="ProjectDetails" component={ProjectDetails} />
+        <Stack.Screen name="StudyCircles" component={StudyCircles} />
+        <Stack.Screen name="CreateCircle" component={CreateCircle} />
+        <Stack.Screen name="CircleDetails" component={CircleDetails} />
+        <Stack.Screen name="Feed" component={Feed} />
+        <Stack.Screen name="Profile" component={Profile} />
+        <Stack.Screen name="EditProfile" component={EditProfile} />
+        <Stack.Screen name="Events" component={BrowseEvents} />
+        <Stack.Screen name="AddEvent" component={AddEvent} />
+        <Stack.Screen name="CommunityList" component={CommunityList} />
+        <Stack.Screen name="CreateCommunity" component={CreateCommunity} />
+        <Stack.Screen name="CommunityFeed" component={CommunityFeed} />
+        <Stack.Screen name="CommunityDetails" component={CommunityDetails} />
+        <Stack.Screen name="BrowseEvents" component={BrowseEvents} />
+        <Stack.Screen name="EventRegistration" component={EventRegistration} />
+        <Stack.Screen name="MyEvents" component={MyEvents} />
       </Stack.Navigator>
     );
   }
