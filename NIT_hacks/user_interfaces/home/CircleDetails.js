@@ -57,7 +57,6 @@ const CircleDetails = ({ route, navigation }) => {
     fetchCircleDetails();
   }, [circleId]);
 
-  // Real-time messages listener
   useEffect(() => {
     if (circleId && activeTab === "Discussion") {
       const messagesRef = collection(db, "studyCircles", circleId, "messages");
@@ -93,7 +92,6 @@ const CircleDetails = ({ route, navigation }) => {
         snapshot.forEach((doc) => sessionsList.push({ id: doc.id, ...doc.data() }));
         setSessions(sessionsList);
       });
-
       return () => unsubscribe();
     }
   }, [circleId, activeTab]);
@@ -128,7 +126,6 @@ const CircleDetails = ({ route, navigation }) => {
 
   const sendMessage = async () => {
     if (!messageText.trim() || sending) return;
-
     setSending(true);
     try {
       const score = sentiment.analyze(messageText.trim()).score;
@@ -149,7 +146,6 @@ const CircleDetails = ({ route, navigation }) => {
         createdAt: Timestamp.now(),
         geminiSummary: geminiResponse,
       });
-
       setMessageText("");
     } catch (error) {
       console.error("Error sending message:", error);
@@ -244,7 +240,6 @@ const CircleDetails = ({ route, navigation }) => {
     const date = timestamp.toDate();
     const now = new Date();
     const diff = now - date;
-
     if (diff < 60000) return "Just now";
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;

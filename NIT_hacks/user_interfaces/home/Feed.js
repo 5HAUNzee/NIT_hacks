@@ -50,6 +50,8 @@ const Feed = ({ navigation }) => {
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentText, setCommentText] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [showPostMenu, setShowPostMenu] = useState(false);
+  const [selectedPostForMenu, setSelectedPostForMenu] = useState(null);
 
   useEffect(() => {
     loadUserData();
@@ -301,23 +303,39 @@ const Feed = ({ navigation }) => {
       return;
     }
 
-    Alert.alert("Delete Post", "Are you sure you want to delete this post?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteDoc(doc(db, "posts", postId));
-            Alert.alert("Success", "Post deleted successfully");
-            loadPosts();
-          } catch (error) {
-            console.error("Error deleting post:", error);
-            Alert.alert("Error", "Failed to delete post");
-          }
+    setShowPostMenu(false);
+    setSelectedPostForMenu(null);
+
+    Alert.alert(
+      "Delete Post", 
+      "Are you sure you want to delete this post? This action cannot be undone.", 
+      [
+        { 
+          text: "Cancel", 
+          style: "cancel",
+          onPress: () => console.log("Delete cancelled")
         },
-      },
-    ]);
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, "posts", postId));
+              Alert.alert("Success", "Post deleted successfully");
+              loadPosts();
+            } catch (error) {
+              console.error("Error deleting post:", error);
+              Alert.alert("Error", "Failed to delete post. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const openPostMenu = (post) => {
+    setSelectedPostForMenu(post);
+    setShowPostMenu(true);
   };
 
   const formatTimestamp = (timestamp) => {
@@ -338,6 +356,12 @@ const Feed = ({ navigation }) => {
   const renderPost = (post) => {
     const isLiked = post.likes?.includes(user.id);
     const isAuthor = post.authorId === user.id;
+    
+    // Debug log - Check in console
+    if (isAuthor) {
+      console.log(`✅ YOU ARE THE AUTHOR of post ${post.id}`);
+      console.log(`Your ID: ${user.id}, Post Author ID: ${post.authorId}`);
+    }
     
     // Determine avatar source: profilePic > githubAvatar > initials
     const avatarSource = post.author?.profilePic || post.author?.githubAvatar;
@@ -382,12 +406,23 @@ const Feed = ({ navigation }) => {
             </View>
           </TouchableOpacity>
           
+          {/* DELETE BUTTON - TOP RIGHT */}
           {isAuthor && (
             <TouchableOpacity
-              onPress={() => deletePost(post.id, post.authorId)}
-              className="p-1.5"
+              onPress={() => {
+                console.log('Delete button clicked!');
+                openPostMenu(post);
+              }}
+              style={{
+                padding: 8,
+                borderRadius: 8,
+                backgroundColor: '#fee2e2',
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+              activeOpacity={0.6}
             >
-              <Feather name="more-horizontal" size={20} color="#6b7280" />
+              <Feather name="trash-2" size={18} color="#dc2626" />
             </TouchableOpacity>
           )}
         </View>
@@ -455,27 +490,6 @@ const Feed = ({ navigation }) => {
             </Text>
           )}
           
-          {/* Author + Caption (Instagram style) */}
-          {post.content && (
-            <View className="flex-row">
-              <TouchableOpacity
-                onPress={() => {
-                  if (post.authorId !== user?.id) {
-                    navigation.navigate("Profile", { userId: post.authorId });
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <Text className="text-sm font-semibold text-gray-900 mr-2">
-                  {post.author?.firstName} {post.author?.lastName}
-                </Text>
-              </TouchableOpacity>
-              <Text className="text-sm text-gray-900 flex-1" numberOfLines={2}>
-                {post.content}
-              </Text>
-            </View>
-          )}
-          
           {/* View comments */}
           {(post.comments?.length || 0) > 0 && (
             <TouchableOpacity onPress={() => openCommentModal(post)} className="mt-1">
@@ -489,6 +503,34 @@ const Feed = ({ navigation }) => {
           <Text className="text-xs text-gray-400 mt-1 uppercase">
             {formatTimestamp(post.createdAt)}
           </Text>
+          
+          {/* Delete option for author - VERY VISIBLE */}
+          {isAuthor && (
+            <TouchableOpacity 
+              onPress={() => openPostMenu(post)}
+              style={{ 
+                marginTop: 12,
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                backgroundColor: '#fee2e2',
+                borderRadius: 8,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              activeOpacity={0.7}
+            >
+              <Feather name="trash-2" size={16} color="#dc2626" />
+              <Text style={{ 
+                fontSize: 14, 
+                color: '#dc2626', 
+                fontWeight: '600',
+                marginLeft: 6,
+              }}>
+                Delete Post
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -802,6 +844,111 @@ const Feed = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </SafeAreaView>
+      </Modal>
+
+      {/* Post Menu Modal */}
+      <Modal
+        visible={showPostMenu}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPostMenu(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setShowPostMenu(false)}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#fff',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              paddingBottom: 20,
+            }}
+          >
+            {/* Menu Header */}
+            <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
+              <View style={{ 
+                width: 40, 
+                height: 4, 
+                backgroundColor: '#d1d5db', 
+                borderRadius: 2 
+              }} />
+            </View>
+
+            {/* Menu Options */}
+            <View style={{ paddingBottom: 24 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (selectedPostForMenu) {
+                    deletePost(selectedPostForMenu.id, selectedPostForMenu.authorId);
+                  }
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 24,
+                  paddingVertical: 16,
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: '#fee2e2',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Feather name="trash-2" size={20} color="#ef4444" />
+                </View>
+                <View style={{ marginLeft: 16, flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#ef4444' }}>
+                    Delete Post
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                    This action cannot be undone
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <View style={{ height: 1, backgroundColor: '#f3f4f6', marginHorizontal: 24 }} />
+
+              <TouchableOpacity
+                onPress={() => setShowPostMenu(false)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 24,
+                  paddingVertical: 16,
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: '#f3f4f6',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Feather name="x" size={20} color="#6b7280" />
+                </View>
+                <View style={{ marginLeft: 16, flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#1f2937' }}>
+                    Cancel
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );

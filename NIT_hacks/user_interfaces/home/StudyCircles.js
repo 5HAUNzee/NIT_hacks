@@ -9,7 +9,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import { collection, query, orderBy, getDocs, doc, updateDoc, arrayUnion } from "firebase/firestore";
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  doc,
+  updateDoc,
+  arrayUnion,
+} from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { useUser } from "@clerk/clerk-expo";
 
@@ -20,28 +28,26 @@ const StudyCircles = ({ navigation }) => {
   const [joiningCircle, setJoiningCircle] = useState(null);
 
   useEffect(() => {
-    fetchAllCircles();
+    const circlesRef = collection(db, "studyCircles");
+    const q = query(circlesRef, orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const circlesList = [];
+        querySnapshot.forEach((doc) => {
+          circlesList.push({ id: doc.id, ...doc.data() });
+        });
+        setCircles(circlesList);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching study circles:", error);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
-
-  const fetchAllCircles = async () => {
-    try {
-      const circlesRef = collection(db, "studyCircles");
-      const q = query(circlesRef, orderBy("createdAt", "desc"));
-      const querySnapshot = await getDocs(q);
-
-      const circlesList = [];
-      querySnapshot.forEach((doc) => {
-        circlesList.push({ id: doc.id, ...doc.data() });
-      });
-
-      setCircles(circlesList);
-      console.log(`✅ Fetched ${circlesList.length} study circles`);
-    } catch (error) {
-      console.error("Error fetching study circles:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleJoinCircle = async (circle) => {
     if (!user) return;
@@ -65,7 +71,7 @@ const StudyCircles = ({ navigation }) => {
       });
 
       Alert.alert("Success", `You've joined ${circle.name}!`);
-      fetchAllCircles(); // Refresh data
+      // No need to manually refetch — listener updates circles automatically!
     } catch (error) {
       console.error("Error joining circle:", error);
       Alert.alert("Error", "Failed to join circle");
@@ -136,31 +142,17 @@ const StudyCircles = ({ navigation }) => {
                       {circle.subject?.substring(0, 2).toUpperCase() || "CS"}
                     </Text>
                   </View>
-                  <View className="flex-row gap-2">
-                    <View className="bg-blue-50 px-3 py-1 rounded-md">
-                      <Text className="text-xs text-blue-700 font-medium">U1</Text>
-                    </View>
-                    <View className="bg-blue-50 px-3 py-1 rounded-md">
-                      <Text className="text-xs text-blue-700 font-medium">U2</Text>
-                    </View>
-                    <View className="bg-blue-50 px-3 py-1 rounded-md">
-                      <Text className="text-xs text-blue-700 font-medium">L3</Text>
-                    </View>
-                  </View>
                 </View>
-
                 {/* Circle Info */}
                 <Text className="text-lg font-semibold text-gray-900 mb-2">
                   {circle.name}
                 </Text>
-
                 <View className="flex-row items-center mb-2">
                   <Feather name="users" size={14} color="#6b7280" />
                   <Text className="text-sm text-gray-600 ml-2">
                     {circle.memberCount || 0} members
                   </Text>
                 </View>
-
                 {circle.meetingDay && circle.meetingTime && (
                   <View className="flex-row items-center mb-4">
                     <Feather name="clock" size={14} color="#6b7280" />
@@ -169,8 +161,6 @@ const StudyCircles = ({ navigation }) => {
                     </Text>
                   </View>
                 )}
-
-                {/* Open Button */}
                 <TouchableOpacity
                   onPress={() =>
                     navigation.navigate("CircleDetails", { circleId: circle.id })
@@ -191,7 +181,6 @@ const StudyCircles = ({ navigation }) => {
           <Text className="text-base font-semibold text-gray-900 mb-4">
             Browse Study Circles
           </Text>
-
           {browseCircles.length === 0 ? (
             <View className="bg-gray-50 rounded-2xl p-8 items-center">
               <Feather name="users" size={48} color="#d1d5db" />
@@ -216,15 +205,12 @@ const StudyCircles = ({ navigation }) => {
                     </Text>
                   </View>
                 </View>
-
                 <Text className="text-base font-semibold text-gray-900 mb-2">
                   {circle.name}
                 </Text>
-
                 <Text className="text-sm text-gray-600 mb-3" numberOfLines={2}>
                   {circle.description}
                 </Text>
-
                 <View className="flex-row items-center justify-between mb-3">
                   <View className="flex-row items-center">
                     <Feather name="users" size={14} color="#6b7280" />
@@ -241,8 +227,6 @@ const StudyCircles = ({ navigation }) => {
                     </View>
                   )}
                 </View>
-
-                {/* Join Button */}
                 <TouchableOpacity
                   onPress={() => handleJoinCircle(circle)}
                   disabled={joiningCircle === circle.id}

@@ -1,6 +1,6 @@
 // Cloudinary Configuration
-const CLOUDINARY_CLOUD_NAME = "dfqa2ojqr";
-const CLOUDINARY_UPLOAD_PRESET = "mitracircle";
+const CLOUDINARY_CLOUD_NAME = "dxclmrx92";
+const CLOUDINARY_UPLOAD_PRESET = "teentatv";
 const CLOUDINARY_IMAGE_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
 const CLOUDINARY_RAW_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`;
 
@@ -21,7 +21,7 @@ export const uploadImageToCloudinary = async (imageUri) => {
       method: "POST",
       body: data,
       headers: {
-        "Accept": "application/json",
+        Accept: "application/json",
       },
     });
 
@@ -57,7 +57,7 @@ export const uploadPDFToCloudinary = async (fileUri, fileName) => {
       method: "POST",
       body: data,
       headers: {
-        "Accept": "application/json",
+        Accept: "application/json",
       },
     });
 
