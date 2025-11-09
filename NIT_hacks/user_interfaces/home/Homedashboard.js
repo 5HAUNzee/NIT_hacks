@@ -26,7 +26,6 @@ import {
   addDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
-import ProfileSetupModal from "./ProfileSetupModal";
 
 const { width } = Dimensions.get("window");
 
@@ -36,7 +35,6 @@ const HomeDashboard = ({ navigation }) => {
 
   const [firebaseData, setFirebaseData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showProfileSetup, setShowProfileSetup] = useState(false);
 
   const [allProjects, setAllProjects] = useState([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
@@ -46,6 +44,7 @@ const HomeDashboard = ({ navigation }) => {
 
   const [allUsers, setAllUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(true);
+  const [showAllUsers, setShowAllUsers] = useState(false);
 
   const insets = useSafeAreaInsets();
 
@@ -58,7 +57,6 @@ const HomeDashboard = ({ navigation }) => {
           if (userSnap.exists()) {
             const data = userSnap.data();
             setFirebaseData(data);
-            if (!data.profileCompleted) setShowProfileSetup(true);
             await fetchAllUsers();
             await fetchConnections();
           }
@@ -177,50 +175,35 @@ const HomeDashboard = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ProfileSetupModal
-        visible={showProfileSetup}
-        onComplete={() => setShowProfileSetup(false)}
-      />
-
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Profile")}
-            style={styles.profileCircle}
-          >
-            <Text style={styles.profileInitials}>
-              {user.firstName?.[0]}
-              {user.lastName?.[0]}
-            </Text>
-          </TouchableOpacity>
-          {/* Logout button */}
-          <TouchableOpacity
-            onPress={() => {
-              Alert.alert("Logout", "Are you sure you want to log out?", [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Logout",
-                  style: "destructive",
-                  onPress: () => {
-                    signOut().catch((err) =>
-                      Alert.alert("Error", "Failed to log out: " + err.message)
-                    );
-                  },
-                },
-              ]);
-            }}
-            style={{
-              marginLeft: 16,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <Feather name="log-out" size={20} color="#ef4444" />
-            <Text style={{ color: "#ef4444", fontWeight: "600" }}>Logout</Text>
-          </TouchableOpacity>
+        {/* Brand Name */}
+        <View style={styles.brandContainer}>
+          <Text style={styles.brandText}>
+            mitra<Text style={styles.brandAccent}>circle</Text>
+          </Text>
         </View>
+
+        {/* User Info with Avatar */}
+        <TouchableOpacity 
+          onPress={() => navigation.navigate("Profile")}
+          style={styles.userInfoContainer}
+          activeOpacity={0.7}
+        >
+          <View style={styles.userTextContainer}>
+            <Text style={styles.userName} numberOfLines={1}>
+              {user.firstName} {user.lastName}
+            </Text>
+            <Text style={styles.userEmail} numberOfLines={1}>
+              {user.primaryEmailAddress?.emailAddress}
+            </Text>
+          </View>
+          <View style={styles.avatarContainer}>
+            <Text style={styles.avatarText}>
+              {user.firstName?.[0]}{user.lastName?.[0]}
+            </Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Main content */}
@@ -380,7 +363,18 @@ const HomeDashboard = ({ navigation }) => {
 
         {/* Add Connections Section */}
         <View style={styles.usersSection}>
-          <Text style={styles.sectionTitle}>Add Connections</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Suggested Connections</Text>
+            {!showAllUsers && allUsers.length > 5 && (
+              <TouchableOpacity
+                onPress={() => setShowAllUsers(true)}
+                style={styles.viewAllBtn}
+              >
+                <Text style={styles.viewAllText}>View All</Text>
+                <Feather name="arrow-right" size={16} color="#3b82f6" />
+              </TouchableOpacity>
+            )}
+          </View>
           {usersLoading ? (
             <ActivityIndicator
               size="small"
@@ -388,34 +382,57 @@ const HomeDashboard = ({ navigation }) => {
               style={{ marginVertical: 16 }}
             />
           ) : allUsers.length === 0 ? (
-            <Text style={{ color: "#6b7280", marginVertical: 16 }}>
-              No users found.
-            </Text>
+            <View style={styles.emptyState}>
+              <Feather name="users" size={48} color="#d1d5db" />
+              <Text style={styles.emptyStateText}>No users found</Text>
+            </View>
           ) : (
-            allUsers.map((person) => (
-              <View key={person.id} style={styles.userCard}>
-                <View style={styles.userAvatar}>
-                  <Text style={styles.userInitials}>
-                    {person.firstName?.[0]}
-                    {person.lastName?.[0]}
-                  </Text>
+            <>
+              {(showAllUsers ? allUsers : allUsers.slice(0, 5)).map((person) => (
+                <View key={person.id} style={styles.userCard}>
+                  <View style={styles.userAvatar}>
+                    <Text style={styles.userInitials}>
+                      {person.firstName?.[0]}
+                      {person.lastName?.[0]}
+                    </Text>
+                  </View>
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>
+                      {person.firstName} {person.lastName}
+                    </Text>
+                    <Text style={styles.userDomain}>
+                      {person.domain || "No domain provided"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.userAddButton}
+                    onPress={() => addConnection(person.id)}
+                  >
+                    <Feather name="plus" size={16} color="#6b7280" />
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.userInfo}>
-                  <Text style={styles.userName}>
-                    {person.firstName} {person.lastName}
-                  </Text>
-                  <Text style={styles.userDomain}>
-                    {person.domain || "No domain provided"}
-                  </Text>
-                </View>
+              ))}
+              {!showAllUsers && allUsers.length > 5 && (
                 <TouchableOpacity
-                  style={styles.userAddButton}
-                  onPress={() => addConnection(person.id)}
+                  style={styles.showMoreButton}
+                  onPress={() => setShowAllUsers(true)}
                 >
-                  <Feather name="plus" size={16} color="#6b7280" />
+                  <Text style={styles.showMoreText}>
+                    Show {allUsers.length - 5} more users
+                  </Text>
+                  <Feather name="chevron-down" size={18} color="#3b82f6" />
                 </TouchableOpacity>
-              </View>
-            ))
+              )}
+              {showAllUsers && allUsers.length > 5 && (
+                <TouchableOpacity
+                  style={styles.showMoreButton}
+                  onPress={() => setShowAllUsers(false)}
+                >
+                  <Text style={styles.showMoreText}>Show less</Text>
+                  <Feather name="chevron-up" size={18} color="#3b82f6" />
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
@@ -483,33 +500,74 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#f0f0f0",
     alignItems: "center",
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  headerRight: { flexDirection: "row", alignItems: "center", gap: 16 },
-  bellIconContainer: { position: "relative" },
-  notificationDot: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "red",
+  brandContainer: {
+    flex: 1,
   },
-  profileCircle: {
-    width: 40,
-    height: 40,
-    backgroundColor: "#bfdbfe",
-    borderRadius: 20,
+  brandText: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#1d4ed8",
+    letterSpacing: -0.5,
+  },
+  brandAccent: {
+    color: "#8b5cf6",
+    fontWeight: "900",
+  },
+  userInfoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 4,
+  },
+  userTextContainer: {
+    alignItems: "flex-end",
+    maxWidth: 150,
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1f2937",
+    letterSpacing: -0.2,
+  },
+  userEmail: {
+    fontSize: 11,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  avatarContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#dbeafe",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#3b82f6",
+    shadowColor: "#3b82f6",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  profileInitials: { color: "#2563eb", fontWeight: "bold" },
+  avatarText: {
+    color: "#1d4ed8",
+    fontWeight: "800",
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -646,6 +704,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 32,
+    backgroundColor: "#f9fafb",
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  emptyStateText: {
+    color: "#6b7280",
+    marginTop: 12,
+    fontSize: 14,
+  },
+  showMoreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#f0f9ff",
+    borderRadius: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  showMoreText: {
+    color: "#3b82f6",
+    fontWeight: "600",
+    fontSize: 14,
+    marginRight: 6,
   },
   floatingBarContainer: {
     position: "absolute",

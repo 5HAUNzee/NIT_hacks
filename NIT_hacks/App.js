@@ -28,6 +28,8 @@ import EditProfile from "./user_interfaces/home/EditProfile";
 
 import CommunityList from "./user_interfaces/home/CommunityList";
 import CreateCommunity from "./user_interfaces/home/CreateCommunity";
+import CommunityFeed from "./user_interfaces/home/CommunityFeed";
+import CommunityDetails from "./user_interfaces/home/CommunityDetails";
 
 import AddEvent from "./user_interfaces/home/AddEvent";
 import BrowseEvents from "./user_interfaces/home/BrowseEvents";
@@ -126,6 +128,8 @@ function RootNavigator() {
         <Stack.Screen name="AddEvent" component={AddEvent} />
         <Stack.Screen name="CommunityList" component={CommunityList} />
         <Stack.Screen name="CreateCommunity" component={CreateCommunity} />
+        <Stack.Screen name="CommunityFeed" component={CommunityFeed} />
+        <Stack.Screen name="CommunityDetails" component={CommunityDetails} />
         <Stack.Screen name="BrowseEvents" component={BrowseEvents} />
         <Stack.Screen name="EventRegistration" component={EventRegistration} />
         <Stack.Screen name="MyEvents" component={MyEvents} />
