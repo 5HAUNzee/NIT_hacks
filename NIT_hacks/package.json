@@ -46,7 +46,7 @@
   },
   "private": true,
   "devDependencies": {
-    "babel-preset-expo": "^54.0.6",
-    "@react-native-community/cli": "latest"
+    "@react-native-community/cli": "latest",
+    "babel-preset-expo": "^54.0.6"
   }
 }

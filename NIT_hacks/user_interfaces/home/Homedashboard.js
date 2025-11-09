@@ -259,7 +259,7 @@ const HomeDashboard = ({ navigation }) => {
             >
               <Text style={styles.viewAllText}>View All</Text>
               <Feather name="arrow-right" size={16} color="#3b82f6" />
-            </TouchableOpacity> */}
+            </TouchableOpacity> 
           </View>
 
           {projectsLoading ? (
@@ -454,7 +454,7 @@ const HomeDashboard = ({ navigation }) => {
             icon="calendar"
             label="Events"
             bg="#f97316"
-            onPress={() => navigation.navigate("Events")}
+            onPress={() => navigation.navigate("BrowseEvents")}
           />
           <QuickActionButton
             icon="users"
@@ -685,59 +685,59 @@ const styles = StyleSheet.create({
 
 export default HomeDashboard;
 
-const { width } = Dimensions.get("window");
+// const { width } = Dimensions.get("window");
 
-const QuickActionButton = ({ icon, label, onPress, bg }) => (
-  <TouchableOpacity onPress={onPress} style={styles.actionWrap} activeOpacity={0.85}>
-    <View style={[styles.iconCircle, { backgroundColor: bg }]}> 
-      <Feather name={icon} size={20} color="#fff" />
-    </View>
-    <Text style={styles.actionLabel}>{label}</Text>
-  </TouchableOpacity>
-);
+// const QuickActionButton = ({ icon, label, onPress, bg }) => (
+//   <TouchableOpacity onPress={onPress} style={styles.actionWrap} activeOpacity={0.85}>
+//     <View style={[styles.iconCircle, { backgroundColor: bg }]}> 
+//       <Feather name={icon} size={20} color="#fff" />
+//     </View>
+//     <Text style={styles.actionLabel}>{label}</Text>
+//   </TouchableOpacity>
+// );
 
-const styles = StyleSheet.create({
-  floatingBarContainer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: "center",
-  },
-  floatingBar: {
-    width: "100%",
-    backgroundColor: "#ffffff",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingTop: 10,
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: "#eef2f7",
-    // shadow
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  actionWrap: {
-    flex: 1,
-    alignItems: "center",
-  },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionLabel: {
-    marginTop: 6,
-    fontSize: 12,
-    color: "#374151",
-    fontWeight: "600",
-  },
-});
+// const styles = StyleSheet.create({
+//   floatingBarContainer: {
+//     position: "absolute",
+//     left: 0,
+//     right: 0,
+//     bottom: 0,
+//     alignItems: "center",
+//   },
+//   floatingBar: {
+//     width: "100%",
+//     backgroundColor: "#ffffff",
+//     borderTopLeftRadius: 16,
+//     borderTopRightRadius: 16,
+//     paddingTop: 10,
+//     paddingHorizontal: 12,
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     alignItems: "center",
+//     borderTopWidth: 1,
+//     borderTopColor: "#eef2f7",
+//     // shadow
+//     shadowColor: "#000",
+//     shadowOffset: { width: 0, height: -6 },
+//     shadowOpacity: 0.06,
+//     shadowRadius: 10,
+//     elevation: 10,
+//   },
+//   actionWrap: {
+//     flex: 1,
+//     alignItems: "center",
+//   },
+//   iconCircle: {
+//     width: 44,
+//     height: 44,
+//     borderRadius: 10,
+//     alignItems: "center",
+//     justifyContent: "center",
+//   },
+//   actionLabel: {
+//     marginTop: 6,
+//     fontSize: 12,
+//     color: "#374151",
+//     fontWeight: "600",
+//   },
+// });
