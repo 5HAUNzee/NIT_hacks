@@ -10,6 +10,7 @@ import {
   Alert,
   RefreshControl,
   Modal,
+  Share,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -31,6 +32,7 @@ import {
 import { db } from "../../firebase.config";
 import * as ImagePicker from "expo-image-picker";
 import { uploadImageToCloudinary } from "../../services/cloudinaryService";
+import { fetchGithubProfile } from "../../services/githubService";
 
 const Feed = ({ navigation }) => {
   const { user } = useUser();
@@ -48,6 +50,8 @@ const Feed = ({ navigation }) => {
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentText, setCommentText] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [showPostMenu, setShowPostMenu] = useState(false);
+  const [selectedPostForMenu, setSelectedPostForMenu] = useState(null);
 
   useEffect(() => {
     loadUserData();
@@ -60,7 +64,21 @@ const Feed = ({ navigation }) => {
         const userRef = doc(db, "users", user.id);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-          setUserData(userSnap.data());
+          let userData = userSnap.data();
+          
+          // If user has GitHub link, fetch GitHub avatar
+          if (userData?.githubLink && !userData.profilePic) {
+            try {
+              const githubProfile = await fetchGithubProfile(userData.githubLink);
+              if (githubProfile?.avatar) {
+                userData = { ...userData, githubAvatar: githubProfile.avatar };
+              }
+            } catch (error) {
+              console.error("Error fetching GitHub avatar:", error);
+            }
+          }
+          
+          setUserData(userData);
         }
       }
     } catch (error) {
@@ -82,7 +100,19 @@ const Feed = ({ navigation }) => {
         // Fetch author data
         const authorRef = doc(db, "users", postData.authorId);
         const authorSnap = await getDoc(authorRef);
-        const authorData = authorSnap.exists() ? authorSnap.data() : null;
+        let authorData = authorSnap.exists() ? authorSnap.data() : null;
+
+        // If author has GitHub link, fetch GitHub avatar
+        if (authorData?.githubLink && !authorData.profilePic) {
+          try {
+            const githubProfile = await fetchGithubProfile(authorData.githubLink);
+            if (githubProfile?.avatar) {
+              authorData = { ...authorData, githubAvatar: githubProfile.avatar };
+            }
+          } catch (error) {
+            console.error("Error fetching GitHub avatar:", error);
+          }
+        }
 
         postsData.push({
           id: docSnap.id,
@@ -206,6 +236,33 @@ const Feed = ({ navigation }) => {
     setCommentModalVisible(true);
   };
 
+  const sharePost = async (post) => {
+    try {
+      const shareMessage = `Check out this post by ${post.author?.firstName} ${post.author?.lastName}!\n\n${post.content || 'See attached image'}\n\n${post.imageUrl ? `Image: ${post.imageUrl}` : ''}`;
+      
+      const result = await Share.share({
+        message: shareMessage,
+        title: `Post from ${post.author?.firstName} ${post.author?.lastName}`,
+      });
+
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          // Shared with activity type of result.activityType
+          console.log('Shared with activity type:', result.activityType);
+        } else {
+          // Shared
+          console.log('Post shared successfully');
+        }
+      } else if (result.action === Share.dismissedAction) {
+        // Dismissed
+        console.log('Share dismissed');
+      }
+    } catch (error) {
+      console.error('Error sharing post:', error);
+      Alert.alert('Error', 'Failed to share post');
+    }
+  };
+
   const addComment = async () => {
     if (!commentText.trim()) {
       Alert.alert("Error", "Please enter a comment");
@@ -246,23 +303,39 @@ const Feed = ({ navigation }) => {
       return;
     }
 
-    Alert.alert("Delete Post", "Are you sure you want to delete this post?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteDoc(doc(db, "posts", postId));
-            Alert.alert("Success", "Post deleted successfully");
-            loadPosts();
-          } catch (error) {
-            console.error("Error deleting post:", error);
-            Alert.alert("Error", "Failed to delete post");
-          }
+    setShowPostMenu(false);
+    setSelectedPostForMenu(null);
+
+    Alert.alert(
+      "Delete Post", 
+      "Are you sure you want to delete this post? This action cannot be undone.", 
+      [
+        { 
+          text: "Cancel", 
+          style: "cancel",
+          onPress: () => console.log("Delete cancelled")
         },
-      },
-    ]);
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, "posts", postId));
+              Alert.alert("Success", "Post deleted successfully");
+              loadPosts();
+            } catch (error) {
+              console.error("Error deleting post:", error);
+              Alert.alert("Error", "Failed to delete post. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const openPostMenu = (post) => {
+    setSelectedPostForMenu(post);
+    setShowPostMenu(true);
   };
 
   const formatTimestamp = (timestamp) => {
@@ -283,141 +356,190 @@ const Feed = ({ navigation }) => {
   const renderPost = (post) => {
     const isLiked = post.likes?.includes(user.id);
     const isAuthor = post.authorId === user.id;
+    
+    // Debug log - Check in console
+    if (isAuthor) {
+      console.log(`✅ YOU ARE THE AUTHOR of post ${post.id}`);
+      console.log(`Your ID: ${user.id}, Post Author ID: ${post.authorId}`);
+    }
+    
+    // Determine avatar source: profilePic > githubAvatar > initials
+    const avatarSource = post.author?.profilePic || post.author?.githubAvatar;
 
     return (
-      <View key={post.id} className="bg-white border-b border-gray-200 mb-2">
+      <View key={post.id} className="bg-white mb-3 pb-2">
         {/* Post Header */}
-        <View className="flex-row items-center justify-between px-4 pt-4 pb-3">
-          <View className="flex-row items-center flex-1">
-            {post.author?.profilePic ? (
+        <View className="flex-row items-center justify-between px-4 pt-3 pb-2">
+          <TouchableOpacity 
+            className="flex-row items-center flex-1"
+            onPress={() => {
+              if (post.authorId !== user?.id) {
+                navigation.navigate("Profile", { userId: post.authorId });
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            {avatarSource ? (
               <Image
-                source={{ uri: post.author.profilePic }}
-                className="w-12 h-12 rounded-full"
+                source={{ uri: avatarSource }}
+                className="w-10 h-10 rounded-full"
+                style={{ borderWidth: 0.5, borderColor: '#e5e7eb' }}
               />
             ) : (
-              <View className="w-12 h-12 rounded-full bg-blue-100 items-center justify-center">
-                <Text className="text-lg font-bold text-blue-600">
+              <View 
+                className="w-10 h-10 rounded-full items-center justify-center"
+                style={{ backgroundColor: '#3b82f6' }}
+              >
+                <Text className="text-base font-bold text-white">
                   {post.author?.firstName?.charAt(0)}
                   {post.author?.lastName?.charAt(0)}
                 </Text>
               </View>
             )}
             <View className="ml-3 flex-1">
-              <Text className="text-base font-semibold text-gray-900">
+              <Text className="text-sm font-semibold text-gray-900">
                 {post.author?.firstName} {post.author?.lastName}
               </Text>
               <Text className="text-xs text-gray-500">
-                {post.author?.major || "Student"} • {formatTimestamp(post.createdAt)}
+                {formatTimestamp(post.createdAt)}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
           
+          {/* DELETE BUTTON - TOP RIGHT */}
           {isAuthor && (
             <TouchableOpacity
-              onPress={() => deletePost(post.id, post.authorId)}
-              className="p-2"
+              onPress={() => {
+                console.log('Delete button clicked!');
+                openPostMenu(post);
+              }}
+              style={{
+                padding: 8,
+                borderRadius: 8,
+                backgroundColor: '#fee2e2',
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+              activeOpacity={0.6}
             >
-              <Feather name="trash-2" size={18} color="#ef4444" />
+              <Feather name="trash-2" size={18} color="#dc2626" />
             </TouchableOpacity>
           )}
         </View>
 
         {/* Post Content */}
-        <View className="px-4 pb-3">
-          <Text className="text-base text-gray-800 leading-6">
-            {post.content}
-          </Text>
-        </View>
-
-        {/* Post Image */}
-        {post.imageUrl && (
-          <Image
-            source={{ uri: post.imageUrl }}
-            className="w-full h-64"
-            resizeMode="cover"
-          />
+        {post.content && (
+          <View className="px-4 pb-3">
+            <Text className="text-[15px] text-gray-900 leading-5">
+              {post.content}
+            </Text>
+          </View>
         )}
 
-        {/* Post Stats */}
-        <View className="flex-row items-center justify-between px-4 py-2 border-t border-gray-100">
-          <Text className="text-sm text-gray-600">
-            {post.likes?.length || 0} {post.likes?.length === 1 ? "like" : "likes"}
-          </Text>
-          <Text className="text-sm text-gray-600">
-            {post.comments?.length || 0} {post.comments?.length === 1 ? "comment" : "comments"}
-          </Text>
-        </View>
+        {/* Post Image with padding */}
+        {post.imageUrl && (
+          <View className="px-4 pb-3">
+            <Image
+              source={{ uri: post.imageUrl }}
+              className="w-full rounded-xl"
+              style={{ aspectRatio: 4 / 3 }}
+              resizeMode="cover"
+            />
+          </View>
+        )}
 
         {/* Action Buttons */}
-        <View className="flex-row border-t border-gray-200 px-4 py-2">
+        <View className="flex-row items-center px-3 pb-1">
           <TouchableOpacity
             onPress={() => toggleLike(post.id, post.likes || [])}
-            className="flex-1 flex-row items-center justify-center py-2"
+            className="py-2 pr-4"
+            activeOpacity={0.7}
           >
             <Feather
-              name={isLiked ? "heart" : "heart"}
-              size={20}
-              color={isLiked ? "#ef4444" : "#6b7280"}
+              name="heart"
+              size={26}
+              color={isLiked ? "#ef4444" : "#1f2937"}
               fill={isLiked ? "#ef4444" : "none"}
+              strokeWidth={2}
             />
-            <Text
-              className={`ml-2 font-medium ${
-                isLiked ? "text-red-500" : "text-gray-600"
-              }`}
-            >
-              Like
-            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => openCommentModal(post)}
-            className="flex-1 flex-row items-center justify-center py-2"
+            className="py-2 pr-4"
+            activeOpacity={0.7}
           >
-            <Feather name="message-circle" size={20} color="#6b7280" />
-            <Text className="ml-2 font-medium text-gray-600">Comment</Text>
+            <Feather name="message-circle" size={26} color="#1f2937" strokeWidth={2} />
           </TouchableOpacity>
 
-          <TouchableOpacity className="flex-1 flex-row items-center justify-center py-2">
-            <Feather name="share-2" size={20} color="#6b7280" />
-            <Text className="ml-2 font-medium text-gray-600">Share</Text>
+          <TouchableOpacity
+            onPress={() => sharePost(post)}
+            className="py-2 pr-4"
+            activeOpacity={0.7}
+          >
+            <Feather name="send" size={24} color="#1f2937" strokeWidth={2} />
           </TouchableOpacity>
         </View>
 
-        {/* Comments Preview */}
-        {post.comments && post.comments.length > 0 && (
-          <View className="px-4 py-3 bg-gray-50">
-            <Text className="text-xs font-semibold text-gray-700 mb-2">
-              Recent Comments
+        {/* Likes and Caption Section */}
+        <View className="px-4 pb-3">
+          {/* Like count */}
+          {(post.likes?.length || 0) > 0 && (
+            <Text className="text-sm font-semibold text-gray-900 mb-2">
+              {post.likes?.length} {post.likes?.length === 1 ? "like" : "likes"}
             </Text>
-            {post.comments.slice(-2).map((comment, index) => (
-              <View key={index} className="flex-row mb-2">
-                <View className="flex-1 bg-white rounded-lg p-3">
-                  <Text className="text-sm font-semibold text-gray-900">
-                    {comment.authorName}
-                  </Text>
-                  <Text className="text-sm text-gray-700 mt-1">
-                    {comment.text}
-                  </Text>
-                </View>
-              </View>
-            ))}
-            {post.comments.length > 2 && (
-              <TouchableOpacity onPress={() => openCommentModal(post)}>
-                <Text className="text-sm text-blue-600 font-medium">
-                  View all {post.comments.length} comments
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+          )}
+          
+          {/* View comments */}
+          {(post.comments?.length || 0) > 0 && (
+            <TouchableOpacity onPress={() => openCommentModal(post)} className="mt-1">
+              <Text className="text-sm text-gray-500">
+                View all {post.comments?.length} {post.comments?.length === 1 ? "comment" : "comments"}
+              </Text>
+            </TouchableOpacity>
+          )}
+          
+          {/* Timestamp */}
+          <Text className="text-xs text-gray-400 mt-1 uppercase">
+            {formatTimestamp(post.createdAt)}
+          </Text>
+          
+          {/* Delete option for author - VERY VISIBLE */}
+          {isAuthor && (
+            <TouchableOpacity 
+              onPress={() => openPostMenu(post)}
+              style={{ 
+                marginTop: 12,
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                backgroundColor: '#fee2e2',
+                borderRadius: 8,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              activeOpacity={0.7}
+            >
+              <Feather name="trash-2" size={16} color="#dc2626" />
+              <Text style={{ 
+                fontSize: 14, 
+                color: '#dc2626', 
+                fontWeight: '600',
+                marginLeft: 6,
+              }}>
+                Delete Post
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
+    <SafeAreaView className="flex-1 bg-gray-50">
       {/* Header */}
-      <View className="bg-white border-b border-gray-200 px-4 py-3">
+      <View className="bg-white border-b border-gray-100 px-4 py-3">
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center">
             <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
@@ -426,14 +548,18 @@ const Feed = ({ navigation }) => {
             <Text className="text-xl font-bold text-gray-900">Feed</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate("Profile")}>
-            {userData?.profilePic ? (
+            {userData?.profilePic || userData?.githubAvatar ? (
               <Image
-                source={{ uri: userData.profilePic }}
-                className="w-8 h-8 rounded-full"
+                source={{ uri: userData.profilePic || userData.githubAvatar }}
+                className="w-9 h-9 rounded-full"
+                style={{ borderWidth: 1, borderColor: '#e5e7eb' }}
               />
             ) : (
-              <View className="w-8 h-8 bg-blue-100 rounded-full items-center justify-center">
-                <Text className="text-sm font-bold text-blue-600">
+              <View 
+                className="w-9 h-9 rounded-full items-center justify-center"
+                style={{ backgroundColor: '#3b82f6' }}
+              >
+                <Text className="text-sm font-bold text-white">
                   {userData?.firstName?.charAt(0)}
                 </Text>
               </View>
@@ -445,24 +571,29 @@ const Feed = ({ navigation }) => {
       {/* Create Post Button */}
       <TouchableOpacity
         onPress={() => setShowCreatePost(true)}
-        className="bg-white border-b border-gray-200 px-4 py-3 flex-row items-center"
+        className="bg-white px-4 py-3 flex-row items-center mb-2"
+        activeOpacity={0.7}
       >
-        {userData?.profilePic ? (
+        {userData?.profilePic || userData?.githubAvatar ? (
           <Image
-            source={{ uri: userData.profilePic }}
+            source={{ uri: userData.profilePic || userData.githubAvatar }}
             className="w-10 h-10 rounded-full"
+            style={{ borderWidth: 0.5, borderColor: '#e5e7eb' }}
           />
         ) : (
-          <View className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center">
-            <Text className="text-base font-bold text-blue-600">
+          <View 
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={{ backgroundColor: '#3b82f6' }}
+          >
+            <Text className="text-base font-bold text-white">
               {userData?.firstName?.charAt(0)}
             </Text>
           </View>
         )}
-        <View className="ml-3 flex-1 bg-gray-100 rounded-full px-4 py-3">
-          <Text className="text-gray-500">Share your thoughts...</Text>
+        <View className="ml-3 flex-1 bg-gray-100 rounded-full px-4 py-2.5">
+          <Text className="text-gray-500 text-sm">What's on your mind?</Text>
         </View>
-        <Feather name="image" size={24} color="#3b82f6" className="ml-3" />
+        <Feather name="image" size={22} color="#3b82f6" className="ml-3" />
       </TouchableOpacity>
 
       {/* Posts List */}
@@ -530,13 +661,17 @@ const Feed = ({ navigation }) => {
           <ScrollView className="flex-1 px-4 py-4">
             {/* User Info */}
             <View className="flex-row items-center mb-4">
-              {userData?.profilePic ? (
+              {userData?.profilePic || userData?.githubAvatar ? (
                 <Image
-                  source={{ uri: userData.profilePic }}
+                  source={{ uri: userData.profilePic || userData.githubAvatar }}
                   className="w-12 h-12 rounded-full"
+                  style={{ borderWidth: 0.5, borderColor: '#e5e7eb' }}
                 />
               ) : (
-                <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center">
+                <View 
+                  className="w-12 h-12 rounded-full items-center justify-center"
+                  style={{ backgroundColor: '#3b82f6' }}
+                >
                   <Text className="text-lg font-bold text-blue-600">
                     {userData?.firstName?.charAt(0)}
                   </Text>
@@ -628,67 +763,192 @@ const Feed = ({ navigation }) => {
           <ScrollView className="flex-1">
             {selectedPost?.comments?.map((comment, index) => (
               <View key={index} className="flex-row px-4 py-3 border-b border-gray-100">
-                {comment.authorPic ? (
-                  <Image
-                    source={{ uri: comment.authorPic }}
-                    className="w-10 h-10 rounded-full"
-                  />
-                ) : (
-                  <View className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center">
-                    <Text className="text-sm font-bold text-blue-600">
-                      {comment.authorName?.charAt(0)}
+                <TouchableOpacity
+                  onPress={() => {
+                    if (comment.authorId && comment.authorId !== user?.id) {
+                      setShowCommentsModal(false);
+                      navigation.navigate("Profile", { userId: comment.authorId });
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  className="flex-row flex-1"
+                >
+                  {comment.authorPic ? (
+                    <Image
+                      source={{ uri: comment.authorPic }}
+                      className="w-10 h-10 rounded-full"
+                    />
+                  ) : (
+                    <View className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center">
+                      <Text className="text-sm font-bold text-blue-600">
+                        {comment.authorName?.charAt(0)}
+                      </Text>
+                    </View>
+                  )}
+                  <View className="ml-3 flex-1">
+                    <Text className="text-sm font-semibold text-gray-900">
+                      {comment.authorName}
+                    </Text>
+                    <Text className="text-sm text-gray-700 mt-1">
+                      {comment.text}
+                    </Text>
+                    <Text className="text-xs text-gray-500 mt-1">
+                      {formatTimestamp(comment.createdAt)}
                     </Text>
                   </View>
-                )}
-                <View className="ml-3 flex-1">
-                  <Text className="text-sm font-semibold text-gray-900">
-                    {comment.authorName}
-                  </Text>
-                  <Text className="text-sm text-gray-700 mt-1">
-                    {comment.text}
-                  </Text>
-                  <Text className="text-xs text-gray-500 mt-1">
-                    {formatTimestamp(comment.createdAt)}
-                  </Text>
-                </View>
+                </TouchableOpacity>
               </View>
             ))}
           </ScrollView>
 
           {/* Add Comment Input */}
-          <View className="flex-row items-center px-4 py-3 border-t border-gray-200">
-            {userData?.profilePic ? (
+          <View className="flex-row items-center px-4 py-3 border-t border-gray-200 bg-white">
+            {userData?.profilePic || userData?.githubAvatar ? (
               <Image
-                source={{ uri: userData.profilePic }}
-                className="w-10 h-10 rounded-full"
+                source={{ uri: userData.profilePic || userData.githubAvatar }}
+                className="w-9 h-9 rounded-full"
+                style={{ borderWidth: 0.5, borderColor: '#e5e7eb' }}
               />
             ) : (
-              <View className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center">
-                <Text className="text-sm font-bold text-blue-600">
+              <View 
+                className="w-9 h-9 rounded-full items-center justify-center"
+                style={{ backgroundColor: '#3b82f6' }}
+              >
+                <Text className="text-sm font-bold text-white">
                   {userData?.firstName?.charAt(0)}
                 </Text>
               </View>
             )}
             <TextInput
-              placeholder="Add a comment..."
+              placeholder="Write a comment..."
               placeholderTextColor="#9ca3af"
               value={commentText}
               onChangeText={setCommentText}
-              className="flex-1 bg-gray-100 rounded-full px-4 py-2 mx-3 text-gray-900"
+              className="flex-1 bg-gray-50 rounded-full px-4 py-2 mx-3 text-gray-900 text-sm"
+              multiline
             />
             <TouchableOpacity
               onPress={addComment}
-              disabled={submittingComment}
-              className={submittingComment ? "opacity-50" : ""}
+              disabled={submittingComment || !commentText.trim()}
+              className={submittingComment || !commentText.trim() ? "opacity-50" : ""}
             >
               {submittingComment ? (
                 <ActivityIndicator size="small" color="#3b82f6" />
               ) : (
-                <Feather name="send" size={24} color="#3b82f6" />
+                <Feather 
+                  name="send" 
+                  size={20} 
+                  color={commentText.trim() ? "#3b82f6" : "#9ca3af"} 
+                />
               )}
             </TouchableOpacity>
           </View>
         </SafeAreaView>
+      </Modal>
+
+      {/* Post Menu Modal */}
+      <Modal
+        visible={showPostMenu}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPostMenu(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setShowPostMenu(false)}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#fff',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              paddingBottom: 20,
+            }}
+          >
+            {/* Menu Header */}
+            <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
+              <View style={{ 
+                width: 40, 
+                height: 4, 
+                backgroundColor: '#d1d5db', 
+                borderRadius: 2 
+              }} />
+            </View>
+
+            {/* Menu Options */}
+            <View style={{ paddingBottom: 24 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (selectedPostForMenu) {
+                    deletePost(selectedPostForMenu.id, selectedPostForMenu.authorId);
+                  }
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 24,
+                  paddingVertical: 16,
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: '#fee2e2',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Feather name="trash-2" size={20} color="#ef4444" />
+                </View>
+                <View style={{ marginLeft: 16, flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#ef4444' }}>
+                    Delete Post
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                    This action cannot be undone
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <View style={{ height: 1, backgroundColor: '#f3f4f6', marginHorizontal: 24 }} />
+
+              <TouchableOpacity
+                onPress={() => setShowPostMenu(false)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 24,
+                  paddingVertical: 16,
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: '#f3f4f6',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Feather name="x" size={20} color="#6b7280" />
+                </View>
+                <View style={{ marginLeft: 16, flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#1f2937' }}>
+                    Cancel
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );

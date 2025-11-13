@@ -434,15 +434,15 @@ const ProfileSetupModal = ({ visible, onComplete }) => {
               className="flex-1 py-4 bg-blue-600 rounded-xl"
               disabled={loading || uploadingImage}
             >
-              <Text className="text-white text-center font-semibold">
-                {loading
-                  ? "Saving..."
-                  : uploadingImage
-                    ? "Uploading..."
-                    : step === 3
-                      ? "Complete Setup"
-                      : "Next"}
-              </Text>
+              {loading ? (
+                <Text className="text-white text-center font-semibold">Saving...</Text>
+              ) : uploadingImage ? (
+                <Text className="text-white text-center font-semibold">Uploading...</Text>
+              ) : step === 3 ? (
+                <Text className="text-white text-center font-semibold">Complete Setup</Text>
+              ) : (
+                <Text className="text-white text-center font-semibold">Next</Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>

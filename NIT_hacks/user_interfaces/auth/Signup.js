@@ -9,13 +9,47 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  StyleSheet,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSignUp } from "@clerk/clerk-expo";
 import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase.config";
+
+// Sample data for dropdowns
+const COLLEGES = [
+  "NIT Trichy",
+  "NIT Warangal",
+  "NIT Surathkal",
+  "NIT Calicut",
+  "NIT Rourkela",
+  "IIT Delhi",
+  "IIT Bombay",
+  "IIT Madras",
+  "IIT Kanpur",
+  "IIIT Hyderabad",
+  "BITS Pilani",
+  "VIT Vellore",
+  "Other",
+];
+
+const DEPARTMENTS = [
+  "Computer Science",
+  "Information Technology",
+  "Electronics & Communication",
+  "Electrical Engineering",
+  "Mechanical Engineering",
+  "Civil Engineering",
+  "Chemical Engineering",
+  "Biotechnology",
+  "Artificial Intelligence",
+  "Data Science",
+  "Other",
+];
+
+const YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "Alumni"];
 
 const SignUp = ({ navigation }) => {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -25,10 +59,19 @@ const SignUp = ({ navigation }) => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [githubLink, setGithubLink] = useState("");
+  const [college, setCollege] = useState("");
+  const [department, setDepartment] = useState("");
+  const [year, setYear] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [code, setCode] = useState("");
+  
+  // Dropdown states
+  const [showCollegeModal, setShowCollegeModal] = useState(false);
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false);
+  const [showYearModal, setShowYearModal] = useState(false);
 
   // ✅ CREATE USER IN FIRESTORE
   const createUserInFirestore = async (userId, userData) => {
@@ -39,7 +82,6 @@ const SignUp = ({ navigation }) => {
         throw new Error("Firebase database not initialized");
       }
 
-      // This will create the 'users' collection if it doesn't exist
       const userRef = doc(db, "users", userId);
 
       const firestoreData = {
@@ -47,16 +89,19 @@ const SignUp = ({ navigation }) => {
         lastName: userData.lastName || "",
         email: userData.email || "",
         username: userData.username || "",
+        githubLink: userData.githubLink || "",
+        college: userData.college || "",
+        department: userData.department || "",
+        year: userData.year || "",
         profilePic: userData.profilePic || null,
+        profileCompleted: false,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
 
-      // setDoc automatically creates collection if it doesn't exist
       await setDoc(userRef, firestoreData);
 
       console.log("✅ User successfully created in Firestore");
-      console.log("✅ Collection 'users' created (if it didn't exist)");
       return true;
     } catch (error) {
       console.error("❌ Firestore Error:", error.message);
@@ -80,6 +125,18 @@ const SignUp = ({ navigation }) => {
     }
     if (!email.trim()) {
       Alert.alert("Error", "Please enter your email");
+      return;
+    }
+    if (!college.trim()) {
+      Alert.alert("Error", "Please select your college");
+      return;
+    }
+    if (!department.trim()) {
+      Alert.alert("Error", "Please select your department");
+      return;
+    }
+    if (!year.trim()) {
+      Alert.alert("Error", "Please select your year");
       return;
     }
     if (!password.trim()) {
@@ -157,6 +214,10 @@ const SignUp = ({ navigation }) => {
           lastName: lastName.trim(),
           email: email.trim(),
           username: username.trim(),
+          githubLink: githubLink.trim(),
+          college: college.trim(),
+          department: department.trim(),
+          year: year.trim(),
           profilePic: null,
         };
 
@@ -183,424 +244,654 @@ const SignUp = ({ navigation }) => {
   // ✅ VERIFICATION SCREEN
   if (verifying) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
-        <LinearGradient
-          colors={["#0f172a", "#1e293b", "#0f172a"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ flex: 1 }}
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.verifyContainer}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={{ flex: 1, justifyContent: "center", paddingHorizontal: 24 }}
+          <View style={styles.verifyContent}>
+            <View style={styles.verifyIconContainer}>
+              <Feather name="mail" size={40} color="#3b82f6" />
+            </View>
+
+            <Text style={styles.verifyTitle}>Verify Email</Text>
+            <Text style={styles.verifySubtitle}>
+              We sent a 6-digit code to
+            </Text>
+            <Text style={styles.verifyEmail}>{email}</Text>
+          </View>
+
+          <View style={styles.verifyInputSection}>
+            <Text style={styles.inputLabel}>Verification Code</Text>
+            <TextInput
+              placeholder="000000"
+              placeholderTextColor="#9ca3af"
+              value={code}
+              onChangeText={setCode}
+              keyboardType="number-pad"
+              maxLength={6}
+              editable={!loading}
+              style={styles.verifyInput}
+            />
+          </View>
+
+          <TouchableOpacity
+            onPress={handleVerifyEmail}
+            disabled={loading}
+            activeOpacity={0.8}
+            style={[styles.verifyButton, loading && styles.verifyButtonDisabled]}
           >
-            <View style={{ alignItems: "center", marginBottom: 32 }}>
-              <View
-                style={{
-                  width: 70,
-                  height: 70,
-                  borderRadius: 35,
-                  backgroundColor: "rgba(59, 130, 246, 0.15)",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginBottom: 24,
-                  borderWidth: 2,
-                  borderColor: "rgba(59, 130, 246, 0.3)",
-                }}
-              >
-                <Feather name="mail" size={36} color="#3b82f6" />
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <View style={styles.buttonContent}>
+                <Feather name="check-circle" size={20} color="white" />
+                <Text style={styles.verifyButtonText}>Verify Email</Text>
               </View>
+            )}
+          </TouchableOpacity>
 
-              <Text
-                style={{
-                  fontSize: 28,
-                  fontWeight: "700",
-                  color: "#fff",
-                  marginBottom: 8,
-                }}
-              >
-                Verify Email
-              </Text>
-              <Text
-                style={{
-                  fontSize: 15,
-                  color: "#94a3b8",
-                  textAlign: "center",
-                  marginBottom: 4,
-                }}
-              >
-                We sent a 6-digit code to
-              </Text>
-              <Text
-                style={{ fontSize: 15, color: "#3b82f6", fontWeight: "600" }}
-              >
-                {email}
-              </Text>
-            </View>
-
-            <View style={{ marginBottom: 24 }}>
-              <Text
-                style={{
-                  color: "#e2e8f0",
-                  fontWeight: "600",
-                  marginBottom: 10,
-                  fontSize: 14,
-                }}
-              >
-                Verification Code
-              </Text>
-              <TextInput
-                placeholder="000000"
-                placeholderTextColor="#475569"
-                value={code}
-                onChangeText={setCode}
-                keyboardType="number-pad"
-                maxLength={6}
-                editable={!loading}
-                style={{
-                  backgroundColor: "#1e293b",
-                  color: "#fff",
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  borderRadius: 12,
-                  fontSize: 24,
-                  textAlign: "center",
-                  letterSpacing: 8,
-                  fontWeight: "600",
-                  borderWidth: 1.5,
-                  borderColor: "#334155",
-                }}
-              />
-            </View>
-
-            <TouchableOpacity
-              onPress={handleVerifyEmail}
-              disabled={loading}
-              activeOpacity={0.85}
-              style={{ borderRadius: 12, overflow: "hidden", marginBottom: 16 }}
-            >
-              <LinearGradient
-                colors={["#6366f1", "#3b82f6"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{ paddingVertical: 14, paddingHorizontal: 24 }}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text
-                    style={{
-                      color: "white",
-                      fontWeight: "700",
-                      textAlign: "center",
-                      fontSize: 16,
-                    }}
-                  >
-                    Verify Email
-                  </Text>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setVerifying(false)}
-              disabled={loading}
-            >
-              <Text
-                style={{
-                  color: "#3b82f6",
-                  textAlign: "center",
-                  fontWeight: "600",
-                  fontSize: 15,
-                }}
-              >
-                Back to SignUp
-              </Text>
-            </TouchableOpacity>
-          </KeyboardAvoidingView>
-        </LinearGradient>
+          <TouchableOpacity
+            onPress={() => setVerifying(false)}
+            disabled={loading}
+            style={styles.backButton}
+          >
+            <Text style={styles.backButtonText}>Back to SignUp</Text>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
 
+  // Dropdown component
+  const DropdownModal = ({ visible, onClose, title, options, onSelect, icon }) => (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity 
+        style={styles.modalOverlay} 
+        activeOpacity={1} 
+        onPress={onClose}
+      >
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <View style={styles.modalTitleRow}>
+              <Feather name={icon} size={20} color="#3b82f6" />
+              <Text style={styles.modalTitle}>{title}</Text>
+            </View>
+            <TouchableOpacity onPress={onClose}>
+              <Feather name="x" size={24} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalScroll}>
+            {options.map((option, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.modalOption}
+                onPress={() => {
+                  onSelect(option);
+                  onClose();
+                }}
+              >
+                <Text style={styles.modalOptionText}>{option}</Text>
+                <Feather name="chevron-right" size={20} color="#9ca3af" />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+
   // ✅ MAIN SIGNUP SCREEN
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
-      <LinearGradient
-        colors={["#0f172a", "#1e293b", "#0f172a"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ flex: 1 }}
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardView}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1 }}
-            showsVerticalScrollIndicator={false}
-          >
-            <View
-              style={{ flex: 1, paddingHorizontal: 24, paddingVertical: 40 }}
+          {/* Header */}
+          <View style={styles.headerSection}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backBtn}
+              disabled={loading}
             >
-              <View>
-                <TouchableOpacity
-                  onPress={() => navigation.goBack()}
-                  style={{ marginBottom: 24 }}
-                  disabled={loading}
-                >
-                  <Feather name="arrow-left" size={24} color="#fff" />
-                </TouchableOpacity>
+              <Feather name="arrow-left" size={24} color="#1f2937" />
+            </TouchableOpacity>
 
-                <Text
-                  style={{
-                    fontSize: 32,
-                    fontWeight: "700",
-                    color: "#fff",
-                    marginBottom: 8,
-                  }}
-                >
-                  Create Account
-                </Text>
-                <Text
-                  style={{ fontSize: 15, color: "#94a3b8", marginBottom: 32 }}
-                >
-                  Welcome! Please fill in all details to get started.
-                </Text>
-              </View>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>
+              Welcome! Please fill in all details to get started.
+            </Text>
+          </View>
 
-              <View>
-                <View
-                  style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        color: "#e2e8f0",
-                        fontWeight: "600",
-                        marginBottom: 10,
-                        fontSize: 14,
-                      }}
-                    >
-                      First name
-                    </Text>
-                    <TextInput
-                      placeholder="First name"
-                      placeholderTextColor="#475569"
-                      value={firstName}
-                      onChangeText={setFirstName}
-                      editable={!loading}
-                      style={{
-                        backgroundColor: "#1e293b",
-                        color: "#fff",
-                        paddingHorizontal: 14,
-                        paddingVertical: 12,
-                        borderRadius: 12,
-                        borderWidth: 1.5,
-                        borderColor: "#334155",
-                        fontSize: 16,
-                      }}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        color: "#e2e8f0",
-                        fontWeight: "600",
-                        marginBottom: 10,
-                        fontSize: 14,
-                      }}
-                    >
-                      Last name
-                    </Text>
-                    <TextInput
-                      placeholder="Last name"
-                      placeholderTextColor="#475569"
-                      value={lastName}
-                      onChangeText={setLastName}
-                      editable={!loading}
-                      style={{
-                        backgroundColor: "#1e293b",
-                        color: "#fff",
-                        paddingHorizontal: 14,
-                        paddingVertical: 12,
-                        borderRadius: 12,
-                        borderWidth: 1.5,
-                        borderColor: "#334155",
-                        fontSize: 16,
-                      }}
-                    />
-                  </View>
+          {/* Form */}
+          <View style={styles.formSection}>
+            {/* Name Row */}
+            <View style={styles.nameRow}>
+              <View style={styles.nameInput}>
+                <View style={styles.labelRow}>
+                  <Feather name="user" size={16} color="#3b82f6" />
+                  <Text style={styles.inputLabel}>First Name</Text>
                 </View>
-
-                <View style={{ marginBottom: 16 }}>
-                  <Text
-                    style={{
-                      color: "#e2e8f0",
-                      fontWeight: "600",
-                      marginBottom: 10,
-                      fontSize: 14,
-                    }}
-                  >
-                    Username
-                  </Text>
+                <View style={styles.inputCard}>
                   <TextInput
-                    placeholder="Enter username"
-                    placeholderTextColor="#475569"
-                    value={username}
-                    onChangeText={setUsername}
-                    autoCapitalize="none"
+                    placeholder="First name"
+                    placeholderTextColor="#9ca3af"
+                    value={firstName}
+                    onChangeText={setFirstName}
                     editable={!loading}
-                    style={{
-                      backgroundColor: "#1e293b",
-                      color: "#fff",
-                      paddingHorizontal: 14,
-                      paddingVertical: 12,
-                      borderRadius: 12,
-                      borderWidth: 1.5,
-                      borderColor: "#334155",
-                      fontSize: 16,
-                    }}
+                    style={styles.input}
                   />
                 </View>
-
-                <View style={{ marginBottom: 16 }}>
-                  <Text
-                    style={{
-                      color: "#e2e8f0",
-                      fontWeight: "600",
-                      marginBottom: 10,
-                      fontSize: 14,
-                    }}
-                  >
-                    Email address
-                  </Text>
-                  <TextInput
-                    placeholder="name@example.com"
-                    placeholderTextColor="#475569"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    editable={!loading}
-                    style={{
-                      backgroundColor: "#1e293b",
-                      color: "#fff",
-                      paddingHorizontal: 14,
-                      paddingVertical: 12,
-                      borderRadius: 12,
-                      borderWidth: 1.5,
-                      borderColor: "#334155",
-                      fontSize: 16,
-                    }}
-                  />
-                </View>
-
-                <View style={{ marginBottom: 24 }}>
-                  <Text
-                    style={{
-                      color: "#e2e8f0",
-                      fontWeight: "600",
-                      marginBottom: 10,
-                      fontSize: 14,
-                    }}
-                  >
-                    Password
-                  </Text>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      backgroundColor: "#1e293b",
-                      borderWidth: 1.5,
-                      borderColor: "#334155",
-                      borderRadius: 12,
-                      paddingHorizontal: 14,
-                      paddingVertical: 12,
-                    }}
-                  >
-                    <TextInput
-                      placeholder="Minimum 8 characters"
-                      placeholderTextColor="#475569"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                      editable={!loading}
-                      style={{ flex: 1, color: "#fff", fontSize: 16 }}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword(!showPassword)}
-                      style={{ padding: 8 }}
-                      disabled={loading}
-                    >
-                      <Feather
-                        name={showPassword ? "eye" : "eye-off"}
-                        size={18}
-                        color="#64748b"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  onPress={handleSignUp}
-                  disabled={loading}
-                  activeOpacity={0.85}
-                  style={{
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    marginBottom: 24,
-                  }}
-                >
-                  <LinearGradient
-                    colors={["#6366f1", "#3b82f6"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={{ paddingVertical: 14, paddingHorizontal: 24 }}
-                  >
-                    {loading ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text
-                        style={{
-                          color: "white",
-                          fontWeight: "700",
-                          textAlign: "center",
-                          fontSize: 16,
-                        }}
-                      >
-                        Continue
-                      </Text>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
               </View>
 
-              <View style={{ flexDirection: "row", justifyContent: "center" }}>
-                <Text style={{ color: "#64748b" }}>
-                  Already have an account?{" "}
+              <View style={styles.nameInput}>
+                <View style={styles.labelRow}>
+                  <Feather name="user" size={16} color="#3b82f6" />
+                  <Text style={styles.inputLabel}>Last Name</Text>
+                </View>
+                <View style={styles.inputCard}>
+                  <TextInput
+                    placeholder="Last name"
+                    placeholderTextColor="#9ca3af"
+                    value={lastName}
+                    onChangeText={setLastName}
+                    editable={!loading}
+                    style={styles.input}
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Username */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Feather name="at-sign" size={18} color="#3b82f6" />
+                <Text style={styles.inputLabel}>Username</Text>
+              </View>
+              <View style={styles.inputCard}>
+                <TextInput
+                  placeholder="Enter username"
+                  placeholderTextColor="#9ca3af"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  editable={!loading}
+                  style={styles.input}
+                />
+              </View>
+            </View>
+
+            {/* Email */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Feather name="mail" size={18} color="#3b82f6" />
+                <Text style={styles.inputLabel}>Email Address</Text>
+              </View>
+              <View style={styles.inputCard}>
+                <TextInput
+                  placeholder="name@example.com"
+                  placeholderTextColor="#9ca3af"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={!loading}
+                  style={styles.input}
+                />
+              </View>
+            </View>
+
+            {/* College Dropdown */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Feather name="book" size={18} color="#3b82f6" />
+                <Text style={styles.inputLabel}>College *</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.dropdownCard}
+                onPress={() => setShowCollegeModal(true)}
+                disabled={loading}
+              >
+                <Text style={[styles.dropdownText, !college && styles.dropdownPlaceholder]}>
+                  {college || "Select your college"}
                 </Text>
+                <Feather name="chevron-down" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Department Dropdown */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Feather name="briefcase" size={18} color="#3b82f6" />
+                <Text style={styles.inputLabel}>Department *</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.dropdownCard}
+                onPress={() => setShowDepartmentModal(true)}
+                disabled={loading}
+              >
+                <Text style={[styles.dropdownText, !department && styles.dropdownPlaceholder]}>
+                  {department || "Select your department"}
+                </Text>
+                <Feather name="chevron-down" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Year Dropdown */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Feather name="calendar" size={18} color="#3b82f6" />
+                <Text style={styles.inputLabel}>Year *</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.dropdownCard}
+                onPress={() => setShowYearModal(true)}
+                disabled={loading}
+              >
+                <Text style={[styles.dropdownText, !year && styles.dropdownPlaceholder]}>
+                  {year || "Select your year"}
+                </Text>
+                <Feather name="chevron-down" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            {/* GitHub Link */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Feather name="github" size={18} color="#3b82f6" />
+                <Text style={styles.inputLabel}>GitHub Profile</Text>
+              </View>
+              <View style={styles.inputCard}>
+                <TextInput
+                  placeholder="https://github.com/yourusername"
+                  placeholderTextColor="#9ca3af"
+                  value={githubLink}
+                  onChangeText={setGithubLink}
+                  autoCapitalize="none"
+                  editable={!loading}
+                  style={styles.input}
+                />
+              </View>
+            </View>
+
+            {/* Password */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Feather name="lock" size={18} color="#3b82f6" />
+                <Text style={styles.inputLabel}>Password</Text>
+              </View>
+              <View style={[styles.inputCard, { flexDirection: 'row', alignItems: 'center' }]}>
+                <TextInput
+                  placeholder="Minimum 8 characters"
+                  placeholderTextColor="#9ca3af"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  editable={!loading}
+                  style={[styles.input, { flex: 1 }]}
+                />
                 <TouchableOpacity
-                  onPress={() => navigation.navigate("Login")}
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeButton}
                   disabled={loading}
                 >
-                  <Text
-                    style={{
-                      color: "#3b82f6",
-                      fontWeight: "700",
-                      textDecorationLine: "underline",
-                    }}
-                  >
-                    Sign in
-                  </Text>
+                  <Feather
+                    name={showPassword ? "eye" : "eye-off"}
+                    size={18}
+                    color="#6b7280"
+                  />
                 </TouchableOpacity>
               </View>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </LinearGradient>
+
+            {/* Create Account Button */}
+            <TouchableOpacity
+              onPress={handleSignUp}
+              disabled={loading}
+              activeOpacity={0.8}
+              style={[styles.signUpButton, loading && styles.signUpButtonDisabled]}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <View style={styles.buttonContent}>
+                  <Feather name="user-plus" size={20} color="white" />
+                  <Text style={styles.signUpButtonText}>Create Account</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <View style={styles.signInRow}>
+              <Text style={styles.footerText}>Already have an account? </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("Login")}
+                disabled={loading}
+              >
+                <Text style={styles.signInLink}>Sign in</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Dropdown Modals */}
+      <DropdownModal
+        visible={showCollegeModal}
+        onClose={() => setShowCollegeModal(false)}
+        title="Select College"
+        options={COLLEGES}
+        onSelect={setCollege}
+        icon="book"
+      />
+      <DropdownModal
+        visible={showDepartmentModal}
+        onClose={() => setShowDepartmentModal(false)}
+        title="Select Department"
+        options={DEPARTMENTS}
+        onSelect={setDepartment}
+        icon="briefcase"
+      />
+      <DropdownModal
+        visible={showYearModal}
+        onClose={() => setShowYearModal(false)}
+        title="Select Year"
+        options={YEARS}
+        onSelect={setYear}
+        icon="calendar"
+      />
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f9fafb",
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+  headerSection: {
+    marginBottom: 32,
+  },
+  backBtn: {
+    marginBottom: 20,
+    width: 40,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#1f2937",
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: "#6b7280",
+  },
+  formSection: {
+    marginBottom: 24,
+  },
+  nameRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+  },
+  nameInput: {
+    flex: 1,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  inputLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1f2937",
+    marginLeft: 8,
+  },
+  inputCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  input: {
+    fontSize: 16,
+    color: "#1f2937",
+  },
+  dropdownCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: "#1f2937",
+  },
+  dropdownPlaceholder: {
+    color: "#9ca3af",
+  },
+  eyeButton: {
+    padding: 4,
+  },
+  signUpButton: {
+    backgroundColor: "#3b82f6",
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+    shadowColor: "#3b82f6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  signUpButtonDisabled: {
+    backgroundColor: "#9ca3af",
+    shadowOpacity: 0,
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  signUpButtonText: {
+    color: "white",
+    fontWeight: "700",
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  footer: {
+    alignItems: "center",
+    marginTop: 8,
+  },
+  signInRow: {
+    flexDirection: "row",
+  },
+  footerText: {
+    color: "#6b7280",
+    fontSize: 14,
+  },
+  signInLink: {
+    color: "#3b82f6",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "70%",
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  modalTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
+    marginLeft: 8,
+  },
+  modalScroll: {
+    maxHeight: "100%",
+  },
+  modalOption: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: "#1f2937",
+  },
+  // Verification styles
+  verifyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  verifyContent: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  verifyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: "#3b82f6",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  verifyTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#1f2937",
+    marginBottom: 8,
+  },
+  verifySubtitle: {
+    fontSize: 15,
+    color: "#6b7280",
+    marginBottom: 4,
+  },
+  verifyEmail: {
+    fontSize: 15,
+    color: "#3b82f6",
+    fontWeight: "600",
+  },
+  verifyInputSection: {
+    marginBottom: 24,
+  },
+  verifyInput: {
+    backgroundColor: "#fff",
+    color: "#1f2937",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    fontSize: 24,
+    textAlign: "center",
+    letterSpacing: 8,
+    fontWeight: "600",
+    borderWidth: 2,
+    borderColor: "#e5e7eb",
+  },
+  verifyButton: {
+    backgroundColor: "#3b82f6",
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 16,
+    shadowColor: "#3b82f6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  verifyButtonDisabled: {
+    backgroundColor: "#9ca3af",
+    shadowOpacity: 0,
+  },
+  verifyButtonText: {
+    color: "white",
+    fontWeight: "700",
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  backButton: {
+    alignItems: "center",
+  },
+  backButtonText: {
+    color: "#3b82f6",
+    fontWeight: "600",
+    fontSize: 15,
+  },
+});
 
 export default SignUp;

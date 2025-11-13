@@ -58,6 +58,8 @@ const CommunityFeed = ({ route, navigation }) => {
   const [communityData, setCommunityData] = useState(null);
   const [isMember, setIsMember] = useState(false);
   const [communitySentimentSummary, setCommunitySentimentSummary] = useState("");
+  const [showPostMenu, setShowPostMenu] = useState(false);
+  const [selectedPostForMenu, setSelectedPostForMenu] = useState(null);
 
   useEffect(() => {
     loadUserData();
@@ -311,8 +313,19 @@ const CommunityFeed = ({ route, navigation }) => {
             </View>
           </View>
           {isAuthor && (
-            <TouchableOpacity onPress={() => deletePost(post.id, post.authorId)} style={styles.deleteButton}>
-              <Feather name="trash-2" size={18} color="#ef4444" />
+            <TouchableOpacity 
+              onPress={() => {
+                console.log('Delete button clicked in Community Feed!');
+                openPostMenu(post);
+              }} 
+              style={{
+                padding: 8,
+                borderRadius: 8,
+                backgroundColor: '#fee2e2',
+              }}
+              activeOpacity={0.7}
+            >
+              <Feather name="trash-2" size={18} color="#dc2626" />
             </TouchableOpacity>
           )}
         </View>
@@ -365,6 +378,29 @@ const CommunityFeed = ({ route, navigation }) => {
             <Text style={styles.actionText}>Share</Text>
           </TouchableOpacity>
         </View>
+        
+        {/* Delete option for author - VISIBLE */}
+        {isAuthor && (
+          <TouchableOpacity 
+            onPress={() => openPostMenu(post)}
+            style={{ 
+              paddingHorizontal: 16, 
+              paddingVertical: 12,
+              borderTopWidth: 1,
+              borderTopColor: '#f3f4f6',
+              backgroundColor: '#fee2e2',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            activeOpacity={0.7}
+          >
+            <Feather name="trash-2" size={16} color="#dc2626" />
+            <Text style={{ fontSize: 14, color: '#dc2626', fontWeight: '600', marginLeft: 8 }}>
+              Delete Post
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -374,22 +410,39 @@ const CommunityFeed = ({ route, navigation }) => {
       Alert.alert("Error", "You can only delete your own posts");
       return;
     }
-    Alert.alert("Delete Post", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteDoc(doc(db, "posts", postId));
-            Alert.alert("Deleted", "Post successfully deleted");
-          } catch (error) {
-            Alert.alert("Error", "Failed to delete post");
-            console.error(error);
-          }
+    
+    setShowPostMenu(false);
+    setSelectedPostForMenu(null);
+
+    Alert.alert(
+      "Delete Post", 
+      "Are you sure you want to delete this post? This action cannot be undone.", 
+      [
+        { 
+          text: "Cancel", 
+          style: "cancel",
+          onPress: () => console.log("Delete cancelled")
         },
-      },
-    ]);
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, "posts", postId));
+              Alert.alert("Success", "Post deleted successfully");
+            } catch (error) {
+              console.error("Error deleting post:", error);
+              Alert.alert("Error", "Failed to delete post. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const openPostMenu = (post) => {
+    setSelectedPostForMenu(post);
+    setShowPostMenu(true);
   };
 
   return (
@@ -587,6 +640,71 @@ const CommunityFeed = ({ route, navigation }) => {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
+
+      {/* Post Menu Modal */}
+      <Modal
+        visible={showPostMenu}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowPostMenu(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setShowPostMenu(false)}
+          style={styles.menuModalOverlay}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.menuModalContent}
+          >
+            {/* Menu Header */}
+            <View style={styles.menuModalHeader}>
+              <View style={styles.menuModalHandle} />
+            </View>
+
+            {/* Menu Options */}
+            <View style={styles.menuModalOptions}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (selectedPostForMenu) {
+                    deletePost(selectedPostForMenu.id, selectedPostForMenu.authorId);
+                  }
+                }}
+                style={styles.menuModalOption}
+                activeOpacity={0.7}
+              >
+                <View style={styles.menuModalOptionIconContainer}>
+                  <Feather name="trash-2" size={20} color="#ef4444" />
+                </View>
+                <View style={styles.menuModalOptionTextContainer}>
+                  <Text style={styles.menuModalOptionTitle}>Delete Post</Text>
+                  <Text style={styles.menuModalOptionSubtitle}>
+                    This action cannot be undone
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <View style={styles.menuModalDivider} />
+
+              <TouchableOpacity
+                onPress={() => setShowPostMenu(false)}
+                style={styles.menuModalOption}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuModalOptionIconContainer, { backgroundColor: '#f3f4f6' }]}>
+                  <Feather name="x" size={20} color="#6b7280" />
+                </View>
+                <View style={styles.menuModalOptionTextContainer}>
+                  <Text style={[styles.menuModalOptionTitle, { color: '#1f2937' }]}>
+                    Cancel
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -666,6 +784,17 @@ const styles = StyleSheet.create({
   commentInput: { flex: 1, marginLeft: 12, marginRight: 12, backgroundColor: "#f3f4f6", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, color: "#1f2937", maxHeight: 100 },
   commentSendButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#3b82f6", justifyContent: "center", alignItems: "center" },
   commentSendButtonDisabled: { backgroundColor: "#d1d5db" },
+  menuModalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  menuModalContent: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  menuModalHeader: { alignItems: "center", paddingTop: 12, paddingBottom: 8 },
+  menuModalHandle: { width: 40, height: 4, backgroundColor: "#d1d5db", borderRadius: 2 },
+  menuModalOptions: { paddingBottom: 24 },
+  menuModalOption: { flexDirection: "row", alignItems: "center", paddingHorizontal: 24, paddingVertical: 16 },
+  menuModalOptionIconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#fee2e2", justifyContent: "center", alignItems: "center" },
+  menuModalOptionTextContainer: { marginLeft: 16, flex: 1 },
+  menuModalOptionTitle: { fontSize: 16, fontWeight: "600", color: "#ef4444" },
+  menuModalOptionSubtitle: { fontSize: 12, color: "#9ca3af", marginTop: 2 },
+  menuModalDivider: { height: 1, backgroundColor: "#f3f4f6", marginHorizontal: 24 },
 });
 
 export default CommunityFeed;

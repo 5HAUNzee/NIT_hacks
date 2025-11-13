@@ -26,7 +26,6 @@ import {
   addDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
-import ProfileSetupModal from "./ProfileSetupModal";
 
 const { width } = Dimensions.get("window");
 
@@ -36,7 +35,6 @@ const HomeDashboard = ({ navigation }) => {
 
   const [firebaseData, setFirebaseData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showProfileSetup, setShowProfileSetup] = useState(false);
 
   const [allProjects, setAllProjects] = useState([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
@@ -46,8 +44,64 @@ const HomeDashboard = ({ navigation }) => {
 
   const [allUsers, setAllUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(true);
+  const [showAllUsers, setShowAllUsers] = useState(false);
 
   const insets = useSafeAreaInsets();
+
+  const fetchAllUsers = async () => {
+    if (!user || !db) return;
+    try {
+      setUsersLoading(true);
+      const usersRef = collection(db, "users");
+      const q = query(
+        usersRef,
+        where("__name__", "!=", user.id)
+      );
+      const querySnapshot = await getDocs(q);
+      const list = [];
+      querySnapshot.forEach((doc) =>
+        list.push({ id: doc.id, ...doc.data() })
+      );
+      setAllUsers(list);
+    } catch (e) {
+      console.error("Error fetching users:", e);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const fetchConnections = async () => {
+    if (!user || !db) return;
+    try {
+      setConnectionsLoading(true);
+      const connectionsRef = collection(db, "connections");
+      const q = query(connectionsRef, where("ownerId", "==", user.id));
+      const snapshot = await getDocs(q);
+      const connectedUserIds = snapshot.docs.map(
+        (doc) => doc.data().connectedUserId
+      );
+      if (connectedUserIds.length === 0) {
+        setConnections([]);
+        setConnectionsLoading(false);
+        return;
+      }
+      const usersRef = collection(db, "users");
+      const usersQuery = query(
+        usersRef,
+        where("__name__", "in", connectedUserIds)
+      );
+      const usersSnapshot = await getDocs(usersQuery);
+      const connectedUsers = [];
+      usersSnapshot.forEach((doc) =>
+        connectedUsers.push({ id: doc.id, ...doc.data() })
+      );
+      setConnections(connectedUsers);
+    } catch (e) {
+      console.error("Error fetching connections:", e);
+    } finally {
+      setConnectionsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -58,9 +112,8 @@ const HomeDashboard = ({ navigation }) => {
           if (userSnap.exists()) {
             const data = userSnap.data();
             setFirebaseData(data);
-            if (!data.profileCompleted) setShowProfileSetup(true);
-            await fetchAllUsers();
             await fetchConnections();
+            await fetchAllUsers();
           }
         }
       } catch (error) {
@@ -87,58 +140,6 @@ const HomeDashboard = ({ navigation }) => {
       }
     };
 
-    const fetchAllUsers = async () => {
-      try {
-        const usersRef = collection(db, "users");
-        const q = query(
-          usersRef,
-          where("__name__", "!=", user.id),
-          orderBy("createdAt", "desc")
-        );
-        const querySnapshot = await getDocs(q);
-        const list = [];
-        querySnapshot.forEach((doc) =>
-          list.push({ id: doc.id, ...doc.data() })
-        );
-        setAllUsers(list);
-      } catch (e) {
-        console.error("Error fetching users:", e);
-      } finally {
-        setUsersLoading(false);
-      }
-    };
-
-    const fetchConnections = async () => {
-      try {
-        const connectionsRef = collection(db, "connections");
-        const q = query(connectionsRef, where("ownerId", "==", user.id));
-        const snapshot = await getDocs(q);
-        const connectedUserIds = snapshot.docs.map(
-          (doc) => doc.data().connectedUserId
-        );
-        if (connectedUserIds.length === 0) {
-          setConnections([]);
-          setConnectionsLoading(false);
-          return;
-        }
-        const usersRef = collection(db, "users");
-        const usersQuery = query(
-          usersRef,
-          where("__name__", "in", connectedUserIds)
-        );
-        const usersSnapshot = await getDocs(usersQuery);
-        const connectedUsers = [];
-        usersSnapshot.forEach((doc) =>
-          connectedUsers.push({ id: doc.id, ...doc.data() })
-        );
-        setConnections(connectedUsers);
-      } catch (e) {
-        console.error("Error fetching connections:", e);
-      } finally {
-        setConnectionsLoading(false);
-      }
-    };
-
     if (user) {
       loadUserData();
       fetchAllProjects();
@@ -157,13 +158,19 @@ const HomeDashboard = ({ navigation }) => {
         connectedUserId,
         createdAt: new Date(),
       });
-      Alert.alert("Connected successfully!");
+      Alert.alert("Success", "Connected successfully!");
+      // Refresh connections to show the new connection
       await fetchConnections();
     } catch (error) {
       console.error("Error adding connection:", error);
-      Alert.alert("Failed to add connection");
+      Alert.alert("Error", "Failed to add connection. Please try again.");
     }
   };
+
+  // Filter out already connected users from suggested connections
+  const suggestedUsers = allUsers.filter(
+    (user) => !connections.find((conn) => conn.id === user.id)
+  );
 
   if (!userLoaded || !authLoaded || loading) {
     return (
@@ -177,50 +184,35 @@ const HomeDashboard = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ProfileSetupModal
-        visible={showProfileSetup}
-        onComplete={() => setShowProfileSetup(false)}
-      />
-
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Profile")}
-            style={styles.profileCircle}
-          >
-            <Text style={styles.profileInitials}>
-              {user.firstName?.[0]}
-              {user.lastName?.[0]}
-            </Text>
-          </TouchableOpacity>
-          {/* Logout button */}
-          <TouchableOpacity
-            onPress={() => {
-              Alert.alert("Logout", "Are you sure you want to log out?", [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Logout",
-                  style: "destructive",
-                  onPress: () => {
-                    signOut().catch((err) =>
-                      Alert.alert("Error", "Failed to log out: " + err.message)
-                    );
-                  },
-                },
-              ]);
-            }}
-            style={{
-              marginLeft: 16,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <Feather name="log-out" size={20} color="#ef4444" />
-            <Text style={{ color: "#ef4444", fontWeight: "600" }}>Logout</Text>
-          </TouchableOpacity>
+        {/* Brand Name */}
+        <View style={styles.brandContainer}>
+          <Text style={styles.brandText}>
+            mitra<Text style={styles.brandAccent}>circle</Text>
+          </Text>
         </View>
+
+        {/* User Info with Avatar */}
+        <TouchableOpacity 
+          onPress={() => navigation.navigate("Profile")}
+          style={styles.userInfoContainer}
+          activeOpacity={0.7}
+        >
+          <View style={styles.userTextContainer}>
+            <Text style={styles.userName} numberOfLines={1}>
+              {user.firstName} {user.lastName}
+            </Text>
+            <Text style={styles.userEmail} numberOfLines={1}>
+              {user.primaryEmailAddress?.emailAddress}
+            </Text>
+          </View>
+          <View style={styles.avatarContainer}>
+            <Text style={styles.avatarText}>
+              {user.firstName?.[0]}{user.lastName?.[0]}
+            </Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Main content */}
@@ -254,15 +246,13 @@ const HomeDashboard = ({ navigation }) => {
               Projects ({allProjects.length})
             </Text>
             <TouchableOpacity
-              onPress={() => navigation.navigate("Projects")}
-              style={styles.viewAllBtn}
-            >
-              <Text style={styles.viewAllText}>View All</Text>
-              <Feather name="arrow-right" size={16} color="#3b82f6" />
-            </TouchableOpacity> 
-          </View>
-
-          {projectsLoading ? (
+            onPress={() => navigation.navigate("Projects")}
+            style={styles.viewAllBtn}
+          >
+            <Text style={styles.viewAllText}>View All</Text>
+            <Feather name="arrow-right" size={16} color="#3b82f6" />
+          </TouchableOpacity>
+        </View>          {projectsLoading ? (
             <View style={styles.loadingProjects}>
               <ActivityIndicator size="small" color="#3b82f6" />
               <Text style={styles.loadingText}>Loading projects...</Text>
@@ -287,9 +277,7 @@ const HomeDashboard = ({ navigation }) => {
                   <TouchableOpacity
                     key={project.id}
                     onPress={() =>
-                      navigation.navigate("ProjectDetails", {
-                        projectId: project.id,
-                      })
+                      navigation.navigate("ProjectDetails", { projectId: project.id })
                     }
                     style={styles.projectCard}
                   >
@@ -349,7 +337,9 @@ const HomeDashboard = ({ navigation }) => {
 
         {/* Your Connections Section */}
         <View style={styles.connectionsSection}>
-          <Text style={styles.sectionTitle}>Your Connections</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Your Connections ({connections.length})</Text>
+          </View>
           {connectionsLoading ? (
             <ActivityIndicator
               size="small"
@@ -357,69 +347,164 @@ const HomeDashboard = ({ navigation }) => {
               style={{ marginVertical: 16 }}
             />
           ) : connections.length === 0 ? (
-            <Text style={{ color: "#6b7280", marginVertical: 16 }}>
-              You have no connections yet.
-            </Text>
+            <View style={styles.emptyConnectionsCard}>
+              <Feather name="users" size={40} color="#d1d5db" />
+              <Text style={styles.emptyConnectionsText}>
+                No connections yet
+              </Text>
+              <Text style={styles.emptyConnectionsSubtext}>
+                Start connecting with people below!
+              </Text>
+            </View>
           ) : (
-            connections.map((person) => (
-              <View key={person.id} style={styles.userCard}>
-                <View style={styles.userAvatar}>
-                  <Text style={styles.userInitials}>
-                    {person.firstName?.[0]}
-                    {person.lastName?.[0]}
-                  </Text>
-                </View>
-                <View style={styles.userInfo}>
-                  <Text style={styles.userName}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingRight: 16 }}
+            >
+              {connections.map((person) => (
+                <TouchableOpacity 
+                  key={person.id} 
+                  style={styles.connectionCard}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.connectionAvatar}>
+                    <Text style={styles.connectionInitials}>
+                      {person.firstName?.[0]}
+                      {person.lastName?.[0]}
+                    </Text>
+                  </View>
+                  <Text style={styles.connectionName} numberOfLines={1}>
                     {person.firstName} {person.lastName}
                   </Text>
-                  <Text style={styles.userDomain}>
-                    {person.domain || "No domain provided"}
+                  <Text style={styles.connectionDomain} numberOfLines={1}>
+                    {person.domain || "Student"}
                   </Text>
-                </View>
-              </View>
-            ))
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           )}
         </View>
 
         {/* Add Connections Section */}
         <View style={styles.usersSection}>
-          <Text style={styles.sectionTitle}>Add Connections</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Suggested Connections</Text>
+            {!showAllUsers && suggestedUsers.length > 3 && (
+              <TouchableOpacity
+                onPress={() => setShowAllUsers(true)}
+                style={styles.viewAllBtn}
+              >
+                <Text style={styles.viewAllText}>View All</Text>
+                <Feather name="arrow-right" size={16} color="#3b82f6" />
+              </TouchableOpacity>
+            )}
+          </View>
           {usersLoading ? (
             <ActivityIndicator
               size="small"
               color="#3b82f6"
               style={{ marginVertical: 16 }}
             />
-          ) : allUsers.length === 0 ? (
-            <Text style={{ color: "#6b7280", marginVertical: 16 }}>
-              No users found.
-            </Text>
+          ) : suggestedUsers.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Feather name="check-circle" size={48} color="#10b981" />
+              <Text style={styles.emptyStateText}>
+                {allUsers.length === 0 
+                  ? "No users found" 
+                  : "You're connected with everyone!"}
+              </Text>
+            </View>
           ) : (
-            allUsers.map((person) => (
-              <View key={person.id} style={styles.userCard}>
-                <View style={styles.userAvatar}>
-                  <Text style={styles.userInitials}>
-                    {person.firstName?.[0]}
-                    {person.lastName?.[0]}
-                  </Text>
+            <>
+              {showAllUsers ? (
+                // Grid view for all users
+                <View style={styles.suggestedUsersGrid}>
+                  {suggestedUsers.map((person) => (
+                    <View key={person.id} style={styles.suggestedUserCard}>
+                      <View style={styles.suggestedUserAvatar}>
+                        <Text style={styles.suggestedUserInitials}>
+                          {person.firstName?.[0]}
+                          {person.lastName?.[0]}
+                        </Text>
+                      </View>
+                      <Text style={styles.suggestedUserName} numberOfLines={1}>
+                        {person.firstName}
+                      </Text>
+                      <Text style={styles.suggestedUserLastName} numberOfLines={1}>
+                        {person.lastName}
+                      </Text>
+                      <Text style={styles.suggestedUserDomain} numberOfLines={1}>
+                        {person.domain || "Student"}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.connectButton}
+                        onPress={() => addConnection(person.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Feather name="user-plus" size={14} color="#fff" />
+                        <Text style={styles.connectButtonText}>Connect</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                 </View>
-                <View style={styles.userInfo}>
-                  <Text style={styles.userName}>
-                    {person.firstName} {person.lastName}
-                  </Text>
-                  <Text style={styles.userDomain}>
-                    {person.domain || "No domain provided"}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.userAddButton}
-                  onPress={() => addConnection(person.id)}
+              ) : (
+                // Horizontal scroll for preview
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingRight: 16 }}
                 >
-                  <Feather name="plus" size={16} color="#6b7280" />
+                  {suggestedUsers.slice(0, 6).map((person) => (
+                    <View key={person.id} style={styles.suggestedUserCard}>
+                      <View style={styles.suggestedUserAvatar}>
+                        <Text style={styles.suggestedUserInitials}>
+                          {person.firstName?.[0]}
+                          {person.lastName?.[0]}
+                        </Text>
+                      </View>
+                      <Text style={styles.suggestedUserName} numberOfLines={1}>
+                        {person.firstName}
+                      </Text>
+                      <Text style={styles.suggestedUserLastName} numberOfLines={1}>
+                        {person.lastName}
+                      </Text>
+                      <Text style={styles.suggestedUserDomain} numberOfLines={1}>
+                        {person.domain || "Student"}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.connectButton}
+                        onPress={() => addConnection(person.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Feather name="user-plus" size={14} color="#fff" />
+                        <Text style={styles.connectButtonText}>Connect</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+              {!showAllUsers && suggestedUsers.length > 6 && (
+                <TouchableOpacity
+                  style={styles.showMoreButton}
+                  onPress={() => setShowAllUsers(true)}
+                >
+                  <Text style={styles.showMoreText}>
+                    Show {suggestedUsers.length - 6} more
+                  </Text>
+                  <Feather name="chevron-down" size={18} color="#3b82f6" />
                 </TouchableOpacity>
-              </View>
-            ))
+              )}
+              {showAllUsers && suggestedUsers.length > 6 && (
+                <TouchableOpacity
+                  style={styles.showMoreButton}
+                  onPress={() => setShowAllUsers(false)}
+                >
+                  <Text style={styles.showMoreText}>Show less</Text>
+                  <Feather name="chevron-up" size={18} color="#3b82f6" />
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
@@ -454,7 +539,7 @@ const HomeDashboard = ({ navigation }) => {
             icon="calendar"
             label="Events"
             bg="#f97316"
-            onPress={() => navigation.navigate("BrowseEvents")}
+            onPress={() => navigation.navigate("Events")}
           />
           <QuickActionButton
             icon="users"
@@ -487,33 +572,74 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#f0f0f0",
     alignItems: "center",
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  headerRight: { flexDirection: "row", alignItems: "center", gap: 16 },
-  bellIconContainer: { position: "relative" },
-  notificationDot: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "red",
+  brandContainer: {
+    flex: 1,
   },
-  profileCircle: {
-    width: 40,
-    height: 40,
-    backgroundColor: "#bfdbfe",
-    borderRadius: 20,
+  brandText: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#1d4ed8",
+    letterSpacing: -0.5,
+  },
+  brandAccent: {
+    color: "#8b5cf6",
+    fontWeight: "900",
+  },
+  userInfoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 4,
+  },
+  userTextContainer: {
+    alignItems: "flex-end",
+    maxWidth: 150,
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1f2937",
+    letterSpacing: -0.2,
+  },
+  userEmail: {
+    fontSize: 11,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  avatarContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#dbeafe",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#3b82f6",
+    shadowColor: "#3b82f6",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  profileInitials: { color: "#2563eb", fontWeight: "bold" },
+  avatarText: {
+    color: "#1d4ed8",
+    fontWeight: "800",
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -617,9 +743,140 @@ const styles = StyleSheet.create({
   connectionsSection: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 32,
+    paddingBottom: 24,
   },
-  usersSection: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 },
+  emptyConnectionsCard: {
+    alignItems: "center",
+    paddingVertical: 32,
+    backgroundColor: "#f9fafb",
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  emptyConnectionsText: {
+    color: "#1f2937",
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  emptyConnectionsSubtext: {
+    color: "#6b7280",
+    marginTop: 4,
+    fontSize: 13,
+  },
+  connectionCard: {
+    width: 120,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 12,
+    marginRight: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  connectionAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#dbeafe",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  connectionInitials: { 
+    fontSize: 20, 
+    color: "#2563eb", 
+    fontWeight: "bold" 
+  },
+  connectionName: { 
+    fontWeight: "600", 
+    fontSize: 13, 
+    color: "#111827",
+    textAlign: "center",
+    marginBottom: 2,
+  },
+  connectionDomain: { 
+    fontSize: 11, 
+    color: "#6b7280",
+    textAlign: "center",
+  },
+  usersSection: { 
+    paddingHorizontal: 16, 
+    paddingTop: 16, 
+    paddingBottom: 32 
+  },
+  suggestedUsersGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  suggestedUserCard: {
+    width: 110,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 12,
+    marginRight: 12,
+    marginBottom: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  suggestedUserAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#e0e7ff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  suggestedUserInitials: { 
+    fontSize: 18, 
+    color: "#4f46e5", 
+    fontWeight: "bold" 
+  },
+  suggestedUserName: { 
+    fontWeight: "600", 
+    fontSize: 12, 
+    color: "#111827",
+    textAlign: "center",
+  },
+  suggestedUserLastName: { 
+    fontWeight: "400", 
+    fontSize: 12, 
+    color: "#111827",
+    textAlign: "center",
+    marginBottom: 2,
+  },
+  suggestedUserDomain: { 
+    fontSize: 10, 
+    color: "#6b7280",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  connectButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#3b82f6",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  connectButtonText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
+  },
   userCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -650,6 +907,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 32,
+    backgroundColor: "#f9fafb",
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  emptyStateText: {
+    color: "#6b7280",
+    marginTop: 12,
+    fontSize: 14,
+  },
+  showMoreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#f0f9ff",
+    borderRadius: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  showMoreText: {
+    color: "#3b82f6",
+    fontWeight: "600",
+    fontSize: 14,
+    marginRight: 6,
   },
   floatingBarContainer: {
     position: "absolute",
@@ -684,60 +971,3 @@ const styles = StyleSheet.create({
 });
 
 export default HomeDashboard;
-
-// const { width } = Dimensions.get("window");
-
-// const QuickActionButton = ({ icon, label, onPress, bg }) => (
-//   <TouchableOpacity onPress={onPress} style={styles.actionWrap} activeOpacity={0.85}>
-//     <View style={[styles.iconCircle, { backgroundColor: bg }]}> 
-//       <Feather name={icon} size={20} color="#fff" />
-//     </View>
-//     <Text style={styles.actionLabel}>{label}</Text>
-//   </TouchableOpacity>
-// );
-
-// const styles = StyleSheet.create({
-//   floatingBarContainer: {
-//     position: "absolute",
-//     left: 0,
-//     right: 0,
-//     bottom: 0,
-//     alignItems: "center",
-//   },
-//   floatingBar: {
-//     width: "100%",
-//     backgroundColor: "#ffffff",
-//     borderTopLeftRadius: 16,
-//     borderTopRightRadius: 16,
-//     paddingTop: 10,
-//     paddingHorizontal: 12,
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     borderTopWidth: 1,
-//     borderTopColor: "#eef2f7",
-//     // shadow
-//     shadowColor: "#000",
-//     shadowOffset: { width: 0, height: -6 },
-//     shadowOpacity: 0.06,
-//     shadowRadius: 10,
-//     elevation: 10,
-//   },
-//   actionWrap: {
-//     flex: 1,
-//     alignItems: "center",
-//   },
-//   iconCircle: {
-//     width: 44,
-//     height: 44,
-//     borderRadius: 10,
-//     alignItems: "center",
-//     justifyContent: "center",
-//   },
-//   actionLabel: {
-//     marginTop: 6,
-//     fontSize: 12,
-//     color: "#374151",
-//     fontWeight: "600",
-//   },
-// });

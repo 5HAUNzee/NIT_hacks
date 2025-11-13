@@ -102,7 +102,7 @@ const Profile = ({ navigation, route }) => {
         onPress: async () => {
           try {
             await signOut();
-            // No need to navigate - Clerk will automatically redirect to login
+            navigation.replace("Login");
           } catch (error) {
             console.error("Logout error:", error);
           }
@@ -230,37 +230,22 @@ const Profile = ({ navigation, route }) => {
         </View>
 
         {/* GitHub Section */}
-        <View style={{ backgroundColor: "#fff", marginTop: 8, paddingVertical: 24, paddingHorizontal: 24 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
-            <Feather name="github" size={24} color="#1f2937" />
-            <Text style={{ fontSize: 18, fontWeight: "700", color: "#1f2937", marginLeft: 12 }}>
-              GitHub Profile
-            </Text>
-          </View>
-
-          {!firebaseData?.githubLink ? (
-            <View
-              style={{
-                paddingVertical: 32,
-                alignItems: "center",
-                backgroundColor: "#f9fafb",
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: "#e5e7eb",
-              }}
-            >
-              <Feather name="info" size={40} color="#d1d5db" />
-              <Text style={{ color: "#6b7280", marginTop: 12, fontSize: 14 }}>
-                GitHub info not provided
+        {firebaseData?.githubLink && (
+          <View style={{ backgroundColor: "#fff", marginTop: 8, paddingVertical: 24, paddingHorizontal: 24 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
+              <Feather name="github" size={24} color="#1f2937" />
+              <Text style={{ fontSize: 18, fontWeight: "700", color: "#1f2937", marginLeft: 12 }}>
+                GitHub Profile
               </Text>
             </View>
-          ) : githubLoading ? (
-            <View style={{ paddingVertical: 40, alignItems: "center" }}>
-              <ActivityIndicator size="small" color="#3b82f6" />
-              <Text style={{ color: "#6b7280", marginTop: 12 }}>Loading GitHub data...</Text>
-            </View>
-          ) : githubData ? (
-            <>
+
+            {githubLoading ? (
+              <View style={{ paddingVertical: 40, alignItems: "center" }}>
+                <ActivityIndicator size="small" color="#3b82f6" />
+                <Text style={{ color: "#6b7280", marginTop: 12 }}>Loading GitHub data...</Text>
+              </View>
+            ) : githubData ? (
+              <>
                 {/* GitHub Profile Card */}
                 <View
                   style={{
@@ -495,44 +480,37 @@ const Profile = ({ navigation, route }) => {
                   </View>
                 )}
               </>
-          ) : (
-            <View
-              style={{
-                paddingVertical: 40,
-                alignItems: "center",
-                backgroundColor: "#f9fafb",
-                borderRadius: 16,
-              }}
-            >
-              <Feather name="alert-circle" size={48} color="#d1d5db" />
-              <Text style={{ color: "#6b7280", marginTop: 12, textAlign: "center" }}>
-                Unable to load GitHub data
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Edit Profile Button - Only show for own profile */}
-        {isOwnProfile && (
-          <View style={{ paddingHorizontal: 24, paddingVertical: 24 }}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("EditProfile")}
-              style={{
-                backgroundColor: "#3b82f6",
-                paddingVertical: 16,
-                borderRadius: 12,
-                alignItems: "center",
-                flexDirection: "row",
-                justifyContent: "center",
-              }}
-            >
-              <Feather name="edit-2" size={20} color="#fff" />
-              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700", marginLeft: 8 }}>
-                Edit Profile
-              </Text>
-            </TouchableOpacity>
+            ) : (
+              <View
+                style={{
+                  paddingVertical: 40,
+                  alignItems: "center",
+                  backgroundColor: "#f9fafb",
+                  borderRadius: 16,
+                }}
+              >
+                <Feather name="alert-circle" size={48} color="#d1d5db" />
+                <Text style={{ color: "#6b7280", marginTop: 12, textAlign: "center" }}>
+                  Unable to load GitHub data
+                </Text>
+              </View>
+            )}
           </View>
         )}
+
+        {/* Edit Profile Button */}
+        <View style={{ paddingHorizontal: 24, paddingVertical: 24 }}>
+          <TouchableOpacity
+            style={{
+              backgroundColor: "#3b82f6",
+              paddingVertical: 16,
+              borderRadius: 12,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>Edit Profile</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
